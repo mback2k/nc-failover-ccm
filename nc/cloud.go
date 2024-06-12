@@ -20,7 +20,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"net/netip"
 
 	"github.com/hooklift/gowsdl/soap"
 	"github.com/mback2k/nc-failover-ccm/nc/scp"
@@ -28,7 +27,6 @@ import (
 
 	"k8s.io/client-go/kubernetes"
 	cloudprovider "k8s.io/cloud-provider"
-	"k8s.io/klog/v2"
 )
 
 const (
@@ -47,8 +45,18 @@ type cloud struct {
 	server scp.WSEndUser
 }
 
-func (c *cloud) Initialize(ccb cloudprovider.ControllerClientBuilder, _ <-chan struct{}) {
+func (c *cloud) Initialize(ccb cloudprovider.ControllerClientBuilder, stop <-chan struct{}) {
 	c.client = ccb.ClientOrDie(providerName + "/" + providerVersion)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func(stop <-chan struct{}) { <-stop; cancel() }(stop)
+	defer cancel()
+
+	err := c.config.Initialize(ctx, c.client)
+	if err != nil {
+		panic(err)
+	}
+
 	c.server = scp.NewWSEndUser(soap.NewClient(scpWS))
 }
 
@@ -146,23 +154,6 @@ func newCloud(config io.Reader) (cloudprovider.Interface, error) {
 	dec := yaml.NewDecoder(config)
 	dec.KnownFields(true)
 	err := dec.Decode(&cfg)
-	if cfg.Username == "" {
-		return nil, errors.New("missing cloud username")
-	}
-	if cfg.Password == "" {
-		return nil, errors.New("missing cloud password")
-	}
-	if len(cfg.Failover) == 0 {
-		return nil, errors.New("missing cloud failover")
-	}
-	for _, failover := range cfg.Failover {
-		prefix, err := netip.ParsePrefix(failover)
-		if err != nil {
-			return nil, err
-		}
-		cfg.prefixes = append(cfg.prefixes, prefix)
-		klog.Infof("Taking control of failover IP: %s", prefix.String())
-	}
 	return &cloud{config: &cfg}, err
 }
 

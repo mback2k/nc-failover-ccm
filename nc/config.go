@@ -16,13 +16,80 @@ limitations under the License.
 
 package nc
 
-import "net/netip"
+import (
+	"context"
+	"encoding/base64"
+	"errors"
+	"net/netip"
+	"strings"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/klog/v2"
+)
 
 type Config struct {
+	Config   string
+	Secret   string
 	Username string
 	Password string
 	Failover []string
 	prefixes []netip.Prefix
+}
+
+func (c *Config) Initialize(ctx context.Context, client kubernetes.Interface) error {
+	if c.Config != "" {
+		name, namespace, _ := strings.Cut(c.Config, "@")
+		config, err := client.CoreV1().ConfigMaps(namespace).Get(ctx, name, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		if username, ok := config.Data["username"]; ok {
+			c.Username = username
+		}
+		if failover, ok := config.Data["failover"]; ok {
+			c.Failover = strings.Split(failover, ",")
+		}
+	}
+	if c.Secret != "" {
+		name, namespace, _ := strings.Cut(c.Config, "@")
+		secret, err := client.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		if encoded, ok := secret.Data["username"]; ok {
+			username, err := base64.StdEncoding.DecodeString(string(encoded))
+			if err != nil {
+				return err
+			}
+			c.Username = string(username)
+		}
+		if encoded, ok := secret.Data["password"]; ok {
+			password, err := base64.StdEncoding.DecodeString(string(encoded))
+			if err != nil {
+				return err
+			}
+			c.Password = string(password)
+		}
+	}
+	if c.Username == "" {
+		return errors.New("missing cloud username")
+	}
+	if c.Password == "" {
+		return errors.New("missing cloud password")
+	}
+	if len(c.Failover) == 0 {
+		return errors.New("missing cloud failover")
+	}
+	for _, failover := range c.Failover {
+		prefix, err := netip.ParsePrefix(failover)
+		if err != nil {
+			return err
+		}
+		c.prefixes = append(c.prefixes, prefix)
+		klog.Infof("Taking control of failover IP: %s", prefix.String())
+	}
+	return nil
 }
 
 func (c *Config) IsFailoverIP(addr netip.Addr) bool {
