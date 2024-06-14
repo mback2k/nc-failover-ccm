@@ -18,7 +18,6 @@ package nc
 
 import (
 	"context"
-	"encoding/base64"
 	"errors"
 	"net/netip"
 	"strings"
@@ -57,18 +56,10 @@ func (c *Config) Initialize(ctx context.Context, client kubernetes.Interface) er
 		if err != nil {
 			return err
 		}
-		if encoded, ok := secret.Data["username"]; ok {
-			username, err := base64.StdEncoding.DecodeString(string(encoded))
-			if err != nil {
-				return err
-			}
+		if username, ok := secret.Data["username"]; ok {
 			c.Username = string(username)
 		}
-		if encoded, ok := secret.Data["password"]; ok {
-			password, err := base64.StdEncoding.DecodeString(string(encoded))
-			if err != nil {
-				return err
-			}
+		if password, ok := secret.Data["password"]; ok {
 			c.Password = string(password)
 		}
 	}
