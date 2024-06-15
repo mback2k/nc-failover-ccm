@@ -40,19 +40,19 @@ spec:
             - "--cloud-provider=nc"
             - "--cloud-config=/config/ccm.yaml"
             - "--leader-elect=true"
+            - "--secure-port=10258"
+            - "--webhook-secure-port=10260"
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
-            - name: probes
-              containerPort: 1337
+            - name: secure
+              containerPort: 10258
               protocol: TCP
-            {{- if .Values.monitoring.enabled }}
-            - name: metrics
-              containerPort: 8233
+            - name: webhook-secure
+              containerPort: 10260
               protocol: TCP
-            {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           livenessProbe:

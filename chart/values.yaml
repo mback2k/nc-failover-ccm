@@ -48,24 +48,6 @@ securityContext: {}
   # runAsNonRoot: true
   # runAsUser: 1000
 
-monitoring:
-  # When enabled, the Pod will serve metrics on port :8233
-  enabled: true
-  podMonitor:
-    # When enabled (and metrics.enabled=true), a PodMonitor will be deployed to scrape metrics.
-    # The PodMonitor CRD must already exist in the target cluster.
-    enabled: true
-    # PodMonitor Labels
-    labels: {}
-    #   release: kube-prometheus-stack
-    # PodMonitor Annotations
-    annotations: {}
-    # PodMonitorSpec to be deployed. The "selector" field is set elsewhere and should *not* be used here.
-    # https://prometheus-operator.dev/docs/operator/api/#monitoring.coreos.com/v1.PodMonitorSpec
-    spec:
-      podMetricsEndpoints:
-        - port: metrics
-
 resources:
   # We usually recommend not to specify default resources and to leave this as a conscious
   # choice for the user. This also increases chances charts run on environments with little
@@ -81,16 +63,16 @@ resources:
     cpu: 100m
     memory: 64Mi
 
-#livenessProbe:
-  # httpGet:
-  #   path: /healthz
-  #   port: secure
-  #   scheme: HTTPS
-#readinessProbe:
-  # httpGet:
-  #   path: /healthz
-  #   port: webhook
-  #   scheme: HTTPS
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: secure
+    scheme: HTTPS
+readinessProbe:
+  httpGet:
+    path: /healthz
+    port: secure
+    scheme: HTTPS
 
 # Additional volumes on the output Deployment definition.
 volumes:
