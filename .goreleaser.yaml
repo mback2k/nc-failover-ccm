@@ -47,9 +47,6 @@ changelog:
       - "^docs:"
       - "^test:"
 
-release:
-  draft: true
-
 dockers:
   - image_templates:
       - '{{ replace .ModulePath "github.com/" "ghcr.io/" }}:{{ .Tag }}'
