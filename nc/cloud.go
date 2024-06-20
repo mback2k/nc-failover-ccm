@@ -21,6 +21,7 @@ import (
 	"errors"
 	"io"
 
+	"github.com/carlmjohnson/versioninfo"
 	"github.com/hooklift/gowsdl/soap"
 	"github.com/mback2k/nc-failover-ccm/nc/scp"
 	"gopkg.in/yaml.v3"
@@ -30,8 +31,7 @@ import (
 )
 
 const (
-	providerName    = "nc"
-	providerVersion = "0.1"
+	providerName = "nc"
 
 	scpWS = "https://www.servercontrolpanel.de/WSEndUser"
 	xmlNS = "http://enduser.service.web.vcp.netcup.de/"
@@ -46,7 +46,7 @@ type cloud struct {
 }
 
 func (c *cloud) Initialize(ccb cloudprovider.ControllerClientBuilder, stop <-chan struct{}) {
-	c.client = ccb.ClientOrDie(providerName + "/" + providerVersion)
+	c.client = ccb.ClientOrDie(providerName + "/" + versioninfo.Short())
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go func(stop <-chan struct{}) { <-stop; cancel() }(stop)
