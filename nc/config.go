@@ -51,7 +51,7 @@ func (c *Config) Initialize(ctx context.Context, client kubernetes.Interface) er
 		}
 	}
 	if c.Secret != "" {
-		name, namespace, _ := strings.Cut(c.Config, "@")
+		name, namespace, _ := strings.Cut(c.Secret, "@")
 		secret, err := client.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
 			return err
