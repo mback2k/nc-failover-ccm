@@ -6,7 +6,9 @@ metadata:
   labels:
     {{- include "chart.labels" . | nindent 4 }}
 data:
+  {{- if .Values.failover -}}
   failover: "{{ join "," .Values.failover }}"
+  {{- end }}
   ccm.yaml: |
-    config: {{ include "chart.fullname" . }}@{{ .Release.Namespace }}
-    secret: {{ include "chart.fullname" . }}@{{ .Release.Namespace }}
+    config: {{ .Values.config.name | default (include "chart.fullname" .) }}@{{ .Values.config.namespace | default .Release.Namespace }}
+    secret: {{ .Values.secret.name | default (include "chart.fullname" .) }}@{{ .Values.secret.namespace | default .Release.Namespace }}

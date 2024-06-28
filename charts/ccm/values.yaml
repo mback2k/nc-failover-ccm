@@ -8,6 +8,14 @@ kind: Deployment
 # change replicaCount (only used when kind is "Deployment")
 replicaCount: 2
 
+# configMap and secret override
+config:
+  name: ""
+  namespace: ""
+secret:
+  name: ""
+  namespace: ""
+
 # cloud provider configuration
 username: ""
 password: ""
