@@ -6,7 +6,7 @@ metadata:
   labels:
     {{- include "chart.labels" . | nindent 4 }}
 data:
-  {{- if .Values.ccm.failover -}}
+  {{- if .Values.ccm.failover }}
   failover: "{{ .Values.ccm.failover }}"
   {{- end }}
   ccm.yaml: |
