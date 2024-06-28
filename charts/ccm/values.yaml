@@ -20,7 +20,7 @@ secret:
 ccm:
   username: ""
   password: ""
-  failover: []
+  failover: ""
 
 image:
   repository: "ghcr.io/mback2k/nc-failover-ccm"
