@@ -17,9 +17,10 @@ secret:
   namespace: ""
 
 # cloud provider configuration
-username: ""
-password: ""
-failover: []
+ccm:
+  username: ""
+  password: ""
+  failover: []
 
 image:
   repository: "ghcr.io/mback2k/nc-failover-ccm"
