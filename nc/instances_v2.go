@@ -26,7 +26,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	cloudprovider "k8s.io/cloud-provider"
-	"k8s.io/cloud-provider/service/helpers"
 	"k8s.io/klog/v2"
 )
 
@@ -115,11 +114,7 @@ func (i *instancesV2) handleShutdown(ctx context.Context, node *v1.Node) error {
 		return err
 	}
 	for _, service := range services.Items {
-		changes := service.DeepCopy()
-		changes.Status.LoadBalancer = v1.LoadBalancerStatus{}
-		delete(changes.Annotations, serviceNode)
-		delete(changes.Labels, serviceNode)
-		_, err := helpers.PatchService(core, &service, changes)
+		_, err := i.cloud.removeServiceNode(&service, true)
 		if err != nil {
 			return err
 		}

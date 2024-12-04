@@ -22,7 +22,6 @@ import (
 	"strconv"
 
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/cloud-provider/service/helpers"
 	"k8s.io/klog/v2"
 )
 
@@ -156,20 +155,14 @@ func (l *loadBalancers) UpdateLoadBalancer(ctx context.Context, clusterName stri
 
 func (l *loadBalancers) EnsureLoadBalancerDeleted(ctx context.Context, clusterName string, service *v1.Service) error {
 	if _, ok := service.Labels[serviceNode]; ok {
-		changes := service.DeepCopy()
-		delete(changes.Annotations, serviceNode)
-		delete(changes.Labels, serviceNode)
-		_, err := helpers.PatchService(l.cloud.client.CoreV1(), service, changes)
+		_, err := l.cloud.removeServiceNode(service, false)
 		return err
 	}
 	return nil
 }
 
 func (l *loadBalancers) createLoadBalancerStatus(service *v1.Service, node *v1.Node, ingress []v1.LoadBalancerIngress) (*v1.LoadBalancerStatus, error) {
-	changes := service.DeepCopy()
-	changes.Annotations[serviceNode] = node.Name
-	changes.Labels[serviceNode] = node.Name
-	_, err := helpers.PatchService(l.cloud.client.CoreV1(), service, changes)
+	_, err := l.cloud.updateServiceNode(service, node)
 	if err != nil {
 		return nil, err
 	}
