@@ -35,8 +35,6 @@ const (
 
 	scpWS = "https://www.servercontrolpanel.de/WSEndUser"
 	xmlNS = "http://enduser.service.web.vcp.netcup.de/"
-
-	serviceNode = "k8s.mback2k.net/nc-failover-node"
 )
 
 type cloud struct {

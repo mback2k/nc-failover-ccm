@@ -114,7 +114,7 @@ func (i *instancesV2) handleShutdown(ctx context.Context, node *v1.Node) error {
 		return err
 	}
 	for _, service := range services.Items {
-		_, err := i.cloud.removeServiceNode(&service, true)
+		err := i.cloud.removeServiceNode(&service, true)
 		if err != nil {
 			return err
 		}
