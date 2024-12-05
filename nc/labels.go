@@ -12,7 +12,7 @@ import (
 
 const (
 	serviceNode = "k8s.mback2k.net/nc-failover-node"
-	nodeService = "nc-failover-service.k8s.mback2k.net.node-restriction.kubernetes.io/"
+	nodeService = "nc-failover-service.k8s.mback2k.net/"
 )
 
 func (c *cloud) updateServiceNode(service *v1.Service, node *v1.Node) error {
