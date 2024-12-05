@@ -23,6 +23,9 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
+      - run: |
+          git tag | grep -v ^v | xargs git tag -d
+
       - uses: goreleaser/goreleaser-action@v5
         with:
           distribution: goreleaser
