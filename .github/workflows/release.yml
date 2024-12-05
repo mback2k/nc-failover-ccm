@@ -58,5 +58,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: helm/chart-releaser-action@v1
+        with:
+          mark_as_latest: false
         env:
           CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
