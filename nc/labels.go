@@ -8,6 +8,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	nodeHelpers "k8s.io/cloud-provider/node/helpers"
 	serviceHelpers "k8s.io/cloud-provider/service/helpers"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -23,10 +24,12 @@ func (c *cloud) updateServiceNode(service *v1.Service, node *v1.Node) error {
 	if err != nil {
 		return err
 	}
-	labels := map[string]string{nodeService + service.Name: "true"}
+	labelName := nodeService + service.Name
+	labels := map[string]string{labelName: "true"}
 	if !nodeHelpers.AddOrUpdateLabelsOnNode(c.client, labels, node) {
 		return errors.New("failed to update node labels")
 	}
+	klog.Infof("Added label '%s' to node '%s'", labelName, node.Name)
 	return nil
 }
 
@@ -46,9 +49,11 @@ func (c *cloud) removeServiceNode(service *v1.Service, clearStatus bool) error {
 	if err != nil {
 		return err
 	}
-	labels := map[string]string{nodeService + service.Name: ""}
+	labelName := nodeService + service.Name
+	labels := map[string]string{labelName: ""}
 	if !nodeHelpers.AddOrUpdateLabelsOnNode(c.client, labels, node) {
 		return errors.New("failed to update node labels")
 	}
+	klog.Infof("Removed label '%s' from node '%s'", labelName, node.Name)
 	return nil
 }
