@@ -92,12 +92,24 @@ func (l *loadBalancers) EnsureLoadBalancer(ctx context.Context, clusterName stri
 		}
 	}
 
+	wantIPv4 := false
+	wantIPv6 := false
+	for _, ipFamily := range service.Spec.IPFamilies {
+		if ipFamily == v1.IPv4Protocol {
+			wantIPv4 = true
+		} else if ipFamily == v1.IPv6Protocol {
+			wantIPv6 = true
+		}
+	}
+
 	klog.Infof("Searching existing loadbalancer for service '%s'", service.Name)
 	for nodeName, node := range readyNodes {
 		resp, err := l.cloud.getServerIPs(ctx, nodeName)
 		if err != nil {
 			return nil, err
 		}
+		needIPv4 := wantIPv4
+		needIPv6 := wantIPv6
 		ingress := []v1.LoadBalancerIngress{}
 		for _, ip := range resp.Return_ {
 			addr, err := netip.ParseAddr(*ip)
@@ -106,9 +118,14 @@ func (l *loadBalancers) EnsureLoadBalancer(ctx context.Context, clusterName stri
 			}
 			if l.cloud.config.IsFailoverIP(addr) {
 				ingress = append(ingress, v1.LoadBalancerIngress{IP: addr.String()})
+				if addr.Is4() {
+					needIPv4 = false
+				} else if addr.Is6() {
+					needIPv6 = false
+				}
 			}
 		}
-		if len(ingress) > 0 {
+		if !needIPv4 && !needIPv6 && len(ingress) > 0 {
 			klog.Infof("Found existing loadbalancer for service '%s' on node '%s'", service.Name, nodeName)
 			return l.createLoadBalancerStatus(service, node, ingress)
 		}
@@ -123,15 +140,15 @@ func (l *loadBalancers) EnsureLoadBalancer(ctx context.Context, clusterName stri
 		if resp.Return_.Status == serverStateOffline {
 			continue
 		}
+		needIPv4 := wantIPv4
+		needIPv6 := wantIPv6
 		ingress := []v1.LoadBalancerIngress{}
 		for _, iface := range resp.Return_.ServerInterfaces {
 			/* identify public interface based upon existence of IPs */
 			if len(iface.Ipv4IP) > 0 && len(iface.Ipv6IP) > 0 {
-				assignedIPv4 := false
-				assignedIPv6 := false
 				for _, prefix := range l.cloud.config.prefixes {
 					addr := prefix.Addr()
-					if (assignedIPv4 && addr.Is4()) || (assignedIPv6 && addr.Is6()) {
+					if (addr.Is4() && !needIPv4) || (addr.Is6() && !needIPv6) {
 						continue
 					}
 					ip := addr.String()
@@ -142,12 +159,12 @@ func (l *loadBalancers) EnsureLoadBalancer(ctx context.Context, clusterName stri
 					if resp.Return_ {
 						ingress = append(ingress, v1.LoadBalancerIngress{IP: ip})
 						if addr.Is4() {
-							assignedIPv4 = true
+							needIPv4 = false
 						} else if addr.Is6() {
-							assignedIPv6 = true
+							needIPv6 = false
 						}
 					}
-					if assignedIPv4 && assignedIPv6 {
+					if !needIPv4 && !needIPv6 {
 						break
 					}
 				}
