@@ -127,14 +127,28 @@ func (l *loadBalancers) EnsureLoadBalancer(ctx context.Context, clusterName stri
 		for _, iface := range resp.Return_.ServerInterfaces {
 			/* identify public interface based upon existence of IPs */
 			if len(iface.Ipv4IP) > 0 && len(iface.Ipv6IP) > 0 {
+				assignedIPv4 := false
+				assignedIPv6 := false
 				for _, prefix := range l.cloud.config.prefixes {
-					ip := prefix.Addr().String()
+					addr := prefix.Addr()
+					if (assignedIPv4 && addr.Is4()) || (assignedIPv6 && addr.Is6()) {
+						continue
+					}
+					ip := addr.String()
 					resp, err := l.cloud.routeServerIP(ctx, ip, strconv.Itoa(prefix.Bits()), resp.Return_.VServerName, iface.Mac)
 					if err != nil {
 						return nil, err
 					}
 					if resp.Return_ {
 						ingress = append(ingress, v1.LoadBalancerIngress{IP: ip})
+						if addr.Is4() {
+							assignedIPv4 = true
+						} else if addr.Is6() {
+							assignedIPv6 = true
+						}
+					}
+					if assignedIPv4 && assignedIPv6 {
+						break
 					}
 				}
 				break
