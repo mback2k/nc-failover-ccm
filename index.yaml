@@ -2,6 +2,16 @@ apiVersion: v1
 entries:
   nc-failover-ccm:
   - apiVersion: v2
+    appVersion: v0.2.6
+    created: "2025-05-10T20:18:48.788187893Z"
+    description: Cloud Controller Manager to treat failover IPs as loadbalancers
+    digest: 113dabe8bbe3d5b6fdd4411dc081d2b0fc41fff723bb757d13e235ef0f0eaa6e
+    name: nc-failover-ccm
+    type: application
+    urls:
+    - https://github.com/mback2k/nc-failover-ccm/releases/download/nc-failover-ccm-0.2.6/nc-failover-ccm-0.2.6.tgz
+    version: 0.2.6
+  - apiVersion: v2
     appVersion: v0.2.5
     created: "2025-05-10T10:48:22.451140024Z"
     description: Cloud Controller Manager to treat failover IPs as loadbalancers
@@ -121,4 +131,4 @@ entries:
     urls:
     - https://github.com/mback2k/nc-failover-ccm/releases/download/nc-failover-ccm-0.1.2/nc-failover-ccm-0.1.2.tgz
     version: 0.1.2
-generated: "2025-05-10T10:48:22.451184046Z"
+generated: "2025-05-10T20:18:48.788276979Z"
