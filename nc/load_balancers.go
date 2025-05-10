@@ -116,6 +116,9 @@ func (l *loadBalancers) EnsureLoadBalancer(ctx context.Context, clusterName stri
 			if err != nil {
 				return nil, err
 			}
+			if (addr.Is4() && !needIPv4) || (addr.Is6() && !needIPv6) {
+				continue
+			}
 			if l.cloud.config.IsFailoverIP(addr) {
 				ingress = append(ingress, v1.LoadBalancerIngress{IP: addr.String()})
 				if addr.Is4() {
