@@ -195,6 +195,9 @@ func (l *loadBalancers) EnsureLoadBalancerDeleted(ctx context.Context, clusterNa
 }
 
 func (l *loadBalancers) createLoadBalancerStatus(service *v1.Service, node *v1.Node, ingress []v1.LoadBalancerIngress) (*v1.LoadBalancerStatus, error) {
+	if _, ok := service.Labels[serviceNode]; ok {
+		l.cloud.removeServiceNode(service, false)
+	}
 	err := l.cloud.updateServiceNode(service, node)
 	if err != nil {
 		return nil, err
