@@ -42,8 +42,28 @@ func (l *loadBalancers) GetLoadBalancer(ctx context.Context, clusterName string,
 			return nil, false, err
 		}
 
+		needIPv4 := false
+		needIPv6 := false
+		for _, ipFamily := range service.Spec.IPFamilies {
+			if ipFamily == v1.IPv4Protocol {
+				needIPv4 = true
+			} else if ipFamily == v1.IPv6Protocol {
+				needIPv6 = true
+			}
+		}
+
 		foundAll := true
 		for _, ingress := range service.Status.LoadBalancer.Ingress {
+			addr, err := netip.ParseAddr(ingress.IP)
+			if err != nil {
+				return nil, false, err
+			}
+			if addr.Is4() {
+				needIPv4 = false
+			} else if addr.Is6() {
+				needIPv6 = false
+			}
+
 			found := false
 			for _, ip := range resp.Return_ {
 				if *ip == ingress.IP {
@@ -56,7 +76,7 @@ func (l *loadBalancers) GetLoadBalancer(ctx context.Context, clusterName string,
 				foundAll = false
 			}
 		}
-		if foundAll {
+		if foundAll && !needIPv4 && !needIPv6 {
 			return &service.Status.LoadBalancer, true, nil
 		}
 	}
