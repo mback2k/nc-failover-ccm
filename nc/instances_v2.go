@@ -97,7 +97,8 @@ func (i *instancesV2) InstanceMetadata(ctx context.Context, node *v1.Node) (*clo
 		}
 	}
 	klog.Infof("Server '%s' has addresses: %s", node.Name, addresses)
-	return &cloudprovider.InstanceMetadata{NodeAddresses: addresses}, nil
+	providerID := i.cloud.ProviderName() + "://" + resp.Return_.VServerName
+	return &cloudprovider.InstanceMetadata{ProviderID: providerID, NodeAddresses: addresses}, nil
 }
 
 func (i *instancesV2) handleShutdown(ctx context.Context, node *v1.Node) error {
