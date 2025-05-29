@@ -80,8 +80,8 @@ func (i *instancesV2) InstanceMetadata(ctx context.Context, node *v1.Node) (*clo
 	addresses := node.Status.Addresses
 	for _, ip := range resp.Return_.Ips {
 		if strings.ContainsRune(*ip, '/') {
-			klog.Infof("Skipping node '%s' network: %s", node.Name, *ip)
-			continue
+			// Strip CIDR notation if present
+			*ip, _, _ = strings.Cut(*ip, "/")
 		}
 		addr, err := netip.ParseAddr(*ip)
 		if err != nil {
