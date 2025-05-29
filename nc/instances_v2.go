@@ -26,6 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	cloudprovider "k8s.io/cloud-provider"
+	cloudproviderapi "k8s.io/cloud-provider/api"
 	"k8s.io/klog/v2"
 )
 
@@ -79,6 +80,7 @@ func (i *instancesV2) InstanceMetadata(ctx context.Context, node *v1.Node) (*clo
 	addresses := node.Status.Addresses
 	for _, ip := range resp.Return_.Ips {
 		if strings.ContainsRune(*ip, '/') {
+			klog.Infof("Skipping node '%s' network: %s", node.Name, *ip)
 			continue
 		}
 		addr, err := netip.ParseAddr(*ip)
@@ -86,6 +88,7 @@ func (i *instancesV2) InstanceMetadata(ctx context.Context, node *v1.Node) (*clo
 			return nil, err
 		}
 		if i.cloud.config.IsFailoverIP(addr) {
+			klog.Infof("Skipping node '%s' failover IP: %s", node.Name, *ip)
 			continue
 		}
 		address := v1.NodeAddress{
@@ -93,6 +96,18 @@ func (i *instancesV2) InstanceMetadata(ctx context.Context, node *v1.Node) (*clo
 			Address: addr.String(),
 		}
 		if !slices.Contains(addresses, address) {
+			klog.Infof("Adding node '%s' external IP: %s", node.Name, address.Address)
+			addresses = append(addresses, address)
+		}
+	}
+	providedNodeIP, exists := node.ObjectMeta.Annotations[cloudproviderapi.AnnotationAlphaProvidedIPAddr]
+	if exists {
+		address := v1.NodeAddress{
+			Type:    v1.NodeInternalIP,
+			Address: providedNodeIP,
+		}
+		if !slices.Contains(addresses, address) {
+			klog.Infof("Adding node '%s' internal IP: %s", node.Name, address.Address)
 			addresses = append(addresses, address)
 		}
 	}
