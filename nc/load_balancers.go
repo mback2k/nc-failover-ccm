@@ -77,6 +77,7 @@ func (l *loadBalancers) GetLoadBalancer(ctx context.Context, clusterName string,
 			}
 		}
 		if foundAll && !needIPv4 && !needIPv6 {
+			klog.Infof("Return existing loadbalancer for service '%s' on node '%s'", service.Name, nodeName)
 			return &service.Status.LoadBalancer, true, nil
 		}
 	}
@@ -122,7 +123,7 @@ func (l *loadBalancers) EnsureLoadBalancer(ctx context.Context, clusterName stri
 		}
 	}
 
-	klog.Infof("Searching existing loadbalancer for service '%s'", service.Name)
+	klog.Infof("Searching matching loadbalancer for service '%s'", service.Name)
 	for nodeName, node := range readyNodes {
 		resp, err := l.cloud.getServerIPs(ctx, nodeName)
 		if err != nil {
@@ -149,7 +150,7 @@ func (l *loadBalancers) EnsureLoadBalancer(ctx context.Context, clusterName stri
 			}
 		}
 		if !needIPv4 && !needIPv6 && len(ingress) > 0 {
-			klog.Infof("Found existing loadbalancer for service '%s' on node '%s'", service.Name, nodeName)
+			klog.Infof("Return matching loadbalancer for service '%s' on node '%s'", service.Name, nodeName)
 			return l.createLoadBalancerStatus(service, node, ingress)
 		}
 	}
