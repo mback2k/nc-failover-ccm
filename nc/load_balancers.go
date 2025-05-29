@@ -67,7 +67,7 @@ func (l *loadBalancers) GetLoadBalancer(ctx context.Context, clusterName string,
 			found := false
 			for _, ip := range resp.Return_ {
 				if *ip == ingress.IP {
-					klog.Infof("Found failover IP '%s' on node '%s' for service '%s'", *ip, nodeName, service.Name)
+					klog.Infof("Found existing failover IP '%s' on node '%s' for service '%s'", *ip, nodeName, service.Name)
 					found = true
 					break
 				}
@@ -141,6 +141,7 @@ func (l *loadBalancers) EnsureLoadBalancer(ctx context.Context, clusterName stri
 				continue
 			}
 			if l.cloud.config.IsFailoverIP(addr) {
+				klog.Infof("Found matching failover IP '%s' on node '%s' for service '%s'", *ip, nodeName, service.Name)
 				ingress = append(ingress, v1.LoadBalancerIngress{IP: addr.String()})
 				if addr.Is4() {
 					needIPv4 = false
@@ -181,6 +182,7 @@ func (l *loadBalancers) EnsureLoadBalancer(ctx context.Context, clusterName stri
 						return nil, err
 					}
 					if resp.Return_ {
+						klog.Infof("Rerouted failover IP '%s' to node '%s' for service '%s'", ip, nodeName, service.Name)
 						ingress = append(ingress, v1.LoadBalancerIngress{IP: ip})
 						if addr.Is4() {
 							needIPv4 = false
