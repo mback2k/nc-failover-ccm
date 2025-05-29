@@ -102,13 +102,15 @@ func (i *instancesV2) InstanceMetadata(ctx context.Context, node *v1.Node) (*clo
 	}
 	providedNodeIP, exists := node.ObjectMeta.Annotations[cloudproviderapi.AnnotationAlphaProvidedIPAddr]
 	if exists {
-		address := v1.NodeAddress{
-			Type:    v1.NodeInternalIP,
-			Address: providedNodeIP,
-		}
-		if !slices.Contains(addresses, address) {
-			klog.Infof("Adding node '%s' internal IP: %s", node.Name, address.Address)
-			addresses = append(addresses, address)
+		for ip := range strings.SplitSeq(providedNodeIP, ",") {
+			address := v1.NodeAddress{
+				Type:    v1.NodeInternalIP,
+				Address: ip,
+			}
+			if !slices.Contains(addresses, address) {
+				klog.Infof("Adding node '%s' internal IP: %s", node.Name, address.Address)
+				addresses = append(addresses, address)
+			}
 		}
 	}
 	klog.Infof("Server '%s' has addresses: %s", node.Name, addresses)
