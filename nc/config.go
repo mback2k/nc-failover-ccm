@@ -18,9 +18,12 @@ package nc
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/netip"
 	"strings"
+
+	"golang.org/x/oauth2"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -34,9 +37,20 @@ type Config struct {
 	Password string
 	Failover []string
 	prefixes []netip.Prefix
+	tokensrc oauth2.TokenSource
 }
 
 func (c *Config) Initialize(ctx context.Context, client kubernetes.Interface) error {
+	conf := &oauth2.Config{
+		ClientID: "scp",
+		Scopes:   []string{"offline_access", "openid"},
+		Endpoint: oauth2.Endpoint{
+			AuthURL:       "https://www.servercontrolpanel.de/realms/scp/protocol/openid-connect/auth",
+			DeviceAuthURL: "https://www.servercontrolpanel.de/realms/scp/protocol/openid-connect/auth/device",
+			TokenURL:      "https://www.servercontrolpanel.de/realms/scp/protocol/openid-connect/token",
+		},
+	}
+
 	if c.Config != "" {
 		name, namespace, _ := strings.Cut(c.Config, "@")
 		config, err := client.CoreV1().ConfigMaps(namespace).Get(ctx, name, metav1.GetOptions{})
@@ -62,6 +76,14 @@ func (c *Config) Initialize(ctx context.Context, client kubernetes.Interface) er
 		if password, ok := secret.Data["password"]; ok {
 			c.Password = string(password)
 		}
+		if token, ok := secret.Data["token"]; ok {
+			var t oauth2.Token
+			err = json.Unmarshal(token, &t)
+			if err != nil {
+				return err
+			}
+			c.tokensrc = conf.TokenSource(ctx, &t)
+		}
 	}
 	if c.Username == "" {
 		return errors.New("missing cloud username")
@@ -80,6 +102,55 @@ func (c *Config) Initialize(ctx context.Context, client kubernetes.Interface) er
 		c.prefixes = append(c.prefixes, prefix)
 		klog.Infof("Taking control of failover IP: %s", prefix.String())
 	}
+
+	if c.tokensrc != nil {
+		_, err := c.tokensrc.Token()
+		if err != nil {
+			c.tokensrc = nil
+			klog.Warningf("Failed to use existing access token: %s", err)
+		}
+	}
+
+	if c.tokensrc == nil {
+		response, err := conf.DeviceAuth(ctx)
+		if err != nil {
+			return err
+		}
+
+		klog.Infof("To authenticate, visit %s and enter the code: %s", response.VerificationURIComplete, response.UserCode)
+
+		token, err := conf.DeviceAccessToken(ctx, response)
+		if err != nil {
+			return err
+		}
+
+		klog.Infof("Successfully authenticated, access token expires at %s", token.Expiry.Format("2006-01-02 15:04:05"))
+
+		klog.Infof("Secret name for storing access token: %s", c.Secret)
+		if c.Secret != "" {
+			klog.Infof("Storing access token in secret %s: %s", c.Secret, token.Expiry.Format("2006-01-02 15:04:05"))
+			name, namespace, _ := strings.Cut(c.Secret, "@")
+			secret, err := client.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+			klog.Infof("Current secret data in secret %s/%s: %s", namespace, name, secret.Data)
+			data, err := json.Marshal(token)
+			if err != nil {
+				return err
+			}
+			secret.Data["token"] = data
+			klog.Infof("Storing access token in secret %s/%s: %s", namespace, name, secret.Data)
+			secret, err = client.CoreV1().Secrets(namespace).Update(ctx, secret, metav1.UpdateOptions{})
+			klog.Infof("Stored access token in secret %s/%s: %s", namespace, name, secret.Data)
+			if err != nil {
+				return err
+			}
+		}
+
+		c.tokensrc = conf.TokenSource(ctx, token)
+	}
+
 	return nil
 }
 

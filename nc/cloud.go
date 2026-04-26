@@ -24,6 +24,8 @@ import (
 	"github.com/carlmjohnson/versioninfo"
 	"github.com/hooklift/gowsdl/soap"
 	"github.com/mback2k/nc-failover-ccm/nc/scp"
+	"github.com/mback2k/nc-failover-ccm/nc/scpcore"
+	"golang.org/x/oauth2"
 	"gopkg.in/yaml.v3"
 
 	"k8s.io/client-go/kubernetes"
@@ -41,6 +43,7 @@ type cloud struct {
 	config *Config
 	client kubernetes.Interface
 	server scp.WSEndUser
+	newapi *scpcore.ClientWithResponses
 }
 
 func (c *cloud) Initialize(ccb cloudprovider.ControllerClientBuilder, stop <-chan struct{}) {
@@ -56,6 +59,12 @@ func (c *cloud) Initialize(ccb cloudprovider.ControllerClientBuilder, stop <-cha
 	}
 
 	c.server = scp.NewWSEndUser(soap.NewClient(scpWS))
+
+	c.newapi, err = scpcore.NewClientWithResponses("https://www.servercontrolpanel.de/scp-core",
+		scpcore.WithHTTPClient(oauth2.NewClient(context.Background(), c.config.tokensrc)))
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (c *cloud) Instances() (cloudprovider.Instances, bool) {
