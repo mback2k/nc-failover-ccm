@@ -18,8 +18,16 @@ const (
 
 func (c *cloud) updateServiceNode(service *v1.Service, node *v1.Node) error {
 	changes := service.DeepCopy()
-	changes.Annotations[serviceNode] = node.Name
-	changes.Labels[serviceNode] = node.Name
+	if changes.Annotations == nil {
+		changes.Annotations = map[string]string{serviceNode: node.Name}
+	} else {
+		changes.Annotations[serviceNode] = node.Name
+	}
+	if changes.Labels == nil {
+		changes.Labels = map[string]string{serviceNode: node.Name}
+	} else {
+		changes.Labels[serviceNode] = node.Name
+	}
 	_, err := serviceHelpers.PatchService(c.client.CoreV1(), service, changes)
 	if err != nil {
 		return err

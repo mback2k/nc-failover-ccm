@@ -35,6 +35,9 @@ func newLoadBalancers(cloud *cloud) *loadBalancers {
 
 func (l *loadBalancers) GetLoadBalancer(ctx context.Context, clusterName string, service *v1.Service) (status *v1.LoadBalancerStatus, exists bool, err error) {
 	klog.Infof("Querying loadbalancer status for service '%s'", service.Name)
+	if service.Labels == nil {
+		return nil, false, nil
+	}
 	if nodeName, ok := service.Labels[serviceNode]; ok {
 		klog.Infof("Found existing loadbalancer for service '%s' on node '%s'", service.Name, nodeName)
 		resp, err := l.cloud.getServerIPs(ctx, nodeName)
@@ -86,9 +89,11 @@ func (l *loadBalancers) GetLoadBalancer(ctx context.Context, clusterName string,
 
 func (l *loadBalancers) GetLoadBalancerName(ctx context.Context, clusterName string, service *v1.Service) string {
 	klog.Infof("Querying loadbalancer name for service '%s'", service.Name)
-	if nodeName, ok := service.Labels[serviceNode]; ok {
-		klog.Infof("Found existing loadbalancer for service '%s' on node '%s'", service.Name, nodeName)
-		return nodeName
+	if service.Labels != nil {
+		if nodeName, ok := service.Labels[serviceNode]; ok {
+			klog.Infof("Found existing loadbalancer for service '%s' on node '%s'", service.Name, nodeName)
+			return nodeName
+		}
 	}
 	return ""
 }
@@ -105,10 +110,12 @@ func (l *loadBalancers) EnsureLoadBalancer(ctx context.Context, clusterName stri
 	}
 
 	klog.Infof("Checking existing loadbalancer for service '%s'", service.Name)
-	if nodeName, ok := service.Labels[serviceNode]; ok {
-		if _, ok := readyNodes[nodeName]; ok {
-			if status, exists, err := l.GetLoadBalancer(ctx, clusterName, service); exists {
-				return status, err
+	if service.Labels != nil {
+		if nodeName, ok := service.Labels[serviceNode]; ok {
+			if _, ok := readyNodes[nodeName]; ok {
+				if status, exists, err := l.GetLoadBalancer(ctx, clusterName, service); exists {
+					return status, err
+				}
 			}
 		}
 	}
@@ -211,15 +218,19 @@ func (l *loadBalancers) UpdateLoadBalancer(ctx context.Context, clusterName stri
 }
 
 func (l *loadBalancers) EnsureLoadBalancerDeleted(ctx context.Context, clusterName string, service *v1.Service) error {
-	if _, ok := service.Labels[serviceNode]; ok {
-		return l.cloud.removeServiceNode(service, false)
+	if service.Labels != nil {
+		if _, ok := service.Labels[serviceNode]; ok {
+			return l.cloud.removeServiceNode(service, false)
+		}
 	}
 	return nil
 }
 
 func (l *loadBalancers) createLoadBalancerStatus(service *v1.Service, node *v1.Node, ingress []v1.LoadBalancerIngress) (*v1.LoadBalancerStatus, error) {
-	if _, ok := service.Labels[serviceNode]; ok {
-		l.cloud.removeServiceNode(service, false)
+	if service.Labels != nil {
+		if _, ok := service.Labels[serviceNode]; ok {
+			l.cloud.removeServiceNode(service, false)
+		}
 	}
 	err := l.cloud.updateServiceNode(service, node)
 	if err != nil {
