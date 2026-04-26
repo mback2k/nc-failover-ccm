@@ -18,9 +18,14 @@ package nc
 
 import (
 	"context"
+	"errors"
+	"net/http"
 	"net/netip"
 	"slices"
+	"strconv"
 	"strings"
+
+	"github.com/mback2k/nc-failover-ccm/nc/scpcore"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,20 +41,28 @@ const (
 
 type instancesV2 struct {
 	cloud *cloud
+
+	cache map[string]int32
 }
 
 func newInstancesV2(cloud *cloud) *instancesV2 {
-	return &instancesV2{cloud}
+	return &instancesV2{cloud: cloud, cache: make(map[string]int32)}
 }
 
 func (i *instancesV2) InstanceExists(ctx context.Context, node *v1.Node) (bool, error) {
 	klog.Infof("Checking if server '%s' exists", node.Name)
-	resp, err := i.cloud.getServers(ctx)
+	resp, err := i.cloud.newapi.GetApiV1ServersWithResponse(ctx, &scpcore.GetApiV1ServersParams{
+		Name: &node.Name,
+	})
 	if err != nil {
 		return false, err
 	}
-	for _, name := range resp.Return_ {
-		if *name == node.Name {
+	if resp.StatusCode() != http.StatusOK {
+		return false, errors.New(resp.Status())
+	}
+	for _, server := range *resp.JSON200 {
+		if *server.Name == node.Name && server.Id != nil {
+			i.cache[node.Name] = *server.Id
 			klog.Infof("Server '%s' found", node.Name)
 			return true, nil
 		}
@@ -60,12 +73,26 @@ func (i *instancesV2) InstanceExists(ctx context.Context, node *v1.Node) (bool, 
 
 func (i *instancesV2) InstanceShutdown(ctx context.Context, node *v1.Node) (bool, error) {
 	klog.Infof("Checking if server '%s' is shutdown", node.Name)
-	resp, err := i.cloud.getServerState(ctx, node.Name)
+	id, ok := i.cache[node.Name]
+	if !ok {
+		exists, err := i.InstanceExists(ctx, node)
+		if !exists || err != nil {
+			return false, err
+		}
+		id = i.cache[node.Name]
+	}
+	yes := true
+	resp, err := i.cloud.newapi.GetApiV1ServersServerIdWithResponse(ctx, id, &scpcore.GetApiV1ServersServerIdParams{
+		LoadServerLiveInfo: &yes,
+	})
 	if err != nil {
 		return false, err
 	}
-	klog.Infof("Server '%s' is '%s'", node.Name, resp.Return_)
-	if resp.Return_ == serverStateOffline {
+	if resp.StatusCode() != http.StatusOK {
+		return false, errors.New(resp.Status())
+	}
+	klog.Infof("Server '%s' is '%s'", node.Name, *resp.JSON200.ServerLiveInfo.State)
+	if *resp.JSON200.ServerLiveInfo.State != scpcore.RUNNING {
 		return true, i.handleShutdown(ctx, node)
 	}
 	return false, nil
@@ -73,22 +100,33 @@ func (i *instancesV2) InstanceShutdown(ctx context.Context, node *v1.Node) (bool
 
 func (i *instancesV2) InstanceMetadata(ctx context.Context, node *v1.Node) (*cloudprovider.InstanceMetadata, error) {
 	klog.Infof("Querying information for server '%s'", node.Name)
-	resp, err := i.cloud.getServerInfo(ctx, node.Name)
+	id, ok := i.cache[node.Name]
+	if !ok {
+		exists, err := i.InstanceExists(ctx, node)
+		if !exists || err != nil {
+			return nil, err
+		}
+		id = i.cache[node.Name]
+	}
+	no := false
+	resp, err := i.cloud.newapi.GetApiV1ServersServerIdWithResponse(ctx, id, &scpcore.GetApiV1ServersServerIdParams{
+		LoadServerLiveInfo: &no,
+	})
 	if err != nil {
 		return nil, err
 	}
+	if resp.StatusCode() != http.StatusOK {
+		return nil, errors.New(resp.Status())
+	}
 	addresses := node.Status.Addresses
-	for _, ip := range resp.Return_.Ips {
-		if strings.ContainsRune(*ip, '/') {
-			// Strip CIDR notation if present
-			*ip, _, _ = strings.Cut(*ip, "/")
-		}
-		addr, err := netip.ParseAddr(*ip)
+	for _, ipv4 := range *resp.JSON200.Ipv4Addresses {
+		klog.Infof("Server '%s' has IPv4 address: %s/%s", node.Name, *ipv4.Ip, *ipv4.Netmask)
+		addr, err := netip.ParseAddr(*ipv4.Ip)
 		if err != nil {
 			return nil, err
 		}
 		if i.cloud.config.IsFailoverIP(addr) {
-			klog.Infof("Skipping node '%s' failover IP: %s", node.Name, *ip)
+			klog.Infof("Skipping node '%s' failover IPv4: %s", node.Name, addr.String())
 			continue
 		}
 		address := v1.NodeAddress{
@@ -96,7 +134,26 @@ func (i *instancesV2) InstanceMetadata(ctx context.Context, node *v1.Node) (*clo
 			Address: addr.String(),
 		}
 		if !slices.Contains(addresses, address) {
-			klog.Infof("Adding node '%s' external IP: %s", node.Name, address.Address)
+			klog.Infof("Adding node '%s' external IPv4: %s", node.Name, address.Address)
+			addresses = append(addresses, address)
+		}
+	}
+	for _, ipv6 := range *resp.JSON200.Ipv6Addresses {
+		klog.Infof("Server '%s' has IPv6 address: %s/%d", node.Name, *ipv6.NetworkPrefix, *ipv6.NetworkPrefixLength)
+		addr, err := netip.ParseAddr(*ipv6.NetworkPrefix)
+		if err != nil {
+			return nil, err
+		}
+		if i.cloud.config.IsFailoverIP(addr) {
+			klog.Infof("Skipping node '%s' failover IPv6: %s", node.Name, addr.String())
+			continue
+		}
+		address := v1.NodeAddress{
+			Type:    v1.NodeExternalIP,
+			Address: addr.String(),
+		}
+		if !slices.Contains(addresses, address) {
+			klog.Infof("Adding node '%s' external IPv6: %s", node.Name, address.Address)
 			addresses = append(addresses, address)
 		}
 	}
@@ -114,8 +171,15 @@ func (i *instancesV2) InstanceMetadata(ctx context.Context, node *v1.Node) (*clo
 		}
 	}
 	klog.Infof("Server '%s' has addresses: %s", node.Name, addresses)
-	providerID := i.cloud.ProviderName() + "://" + resp.Return_.VServerName
-	return &cloudprovider.InstanceMetadata{ProviderID: providerID, NodeAddresses: addresses}, nil
+	providerID := i.cloud.ProviderName() + "://" + strconv.FormatInt(int64(*resp.JSON200.Id), 10)
+	metadata := &cloudprovider.InstanceMetadata{
+		ProviderID:    providerID,
+		NodeAddresses: addresses,
+		InstanceType:  resp.JSON200.Template.Name,
+		Region:        resp.JSON200.Site.City,
+	}
+	klog.Infof("Server '%s' has metadata: %v", node.Name, metadata)
+	return metadata, nil
 }
 
 func (i *instancesV2) handleShutdown(ctx context.Context, node *v1.Node) error {
