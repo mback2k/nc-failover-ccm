@@ -4,11 +4,23 @@
 <xsd:import namespace="http://enduser.service.web.vcp.netcup.de/" schemaLocation="https://www.servercontrolpanel.de/SCP/WSEndUser?xsd=1"/>
 </xsd:schema>
 </types>
+<message name="getUserData">
+<part name="parameters" element="tns:getUserData"/>
+</message>
+<message name="getUserDataResponse">
+<part name="parameters" element="tns:getUserDataResponse"/>
+</message>
 <message name="getVServerInformation">
 <part name="parameters" element="tns:getVServerInformation"/>
 </message>
 <message name="getVServerInformationResponse">
 <part name="parameters" element="tns:getVServerInformationResponse"/>
+</message>
+<message name="changeUserPassword">
+<part name="parameters" element="tns:changeUserPassword"/>
+</message>
+<message name="changeUserPasswordResponse">
+<part name="parameters" element="tns:changeUserPasswordResponse"/>
 </message>
 <message name="stopVServer">
 <part name="parameters" element="tns:stopVServer"/>
@@ -52,11 +64,35 @@
 <message name="vServerPoweroffResponse">
 <part name="parameters" element="tns:vServerPoweroffResponse"/>
 </message>
-<message name="changeUserPassword">
-<part name="parameters" element="tns:changeUserPassword"/>
+<message name="getLoginToken">
+<part name="parameters" element="tns:getLoginToken"/>
 </message>
-<message name="changeUserPasswordResponse">
-<part name="parameters" element="tns:changeUserPasswordResponse"/>
+<message name="getLoginTokenResponse">
+<part name="parameters" element="tns:getLoginTokenResponse"/>
+</message>
+<message name="vServerRestore">
+<part name="parameters" element="tns:vServerRestore"/>
+</message>
+<message name="vServerRestoreResponse">
+<part name="parameters" element="tns:vServerRestoreResponse"/>
+</message>
+<message name="getVServerStatToken">
+<part name="parameters" element="tns:getVServerStatToken"/>
+</message>
+<message name="getVServerStatTokenResponse">
+<part name="parameters" element="tns:getVServerStatTokenResponse"/>
+</message>
+<message name="getVServerTrafficOfDay">
+<part name="parameters" element="tns:getVServerTrafficOfDay"/>
+</message>
+<message name="getVServerTrafficOfDayResponse">
+<part name="parameters" element="tns:getVServerTrafficOfDayResponse"/>
+</message>
+<message name="getVServerTrafficOfMonth">
+<part name="parameters" element="tns:getVServerTrafficOfMonth"/>
+</message>
+<message name="getVServerTrafficOfMonthResponse">
+<part name="parameters" element="tns:getVServerTrafficOfMonthResponse"/>
 </message>
 <message name="addCloudVLANInterface">
 <part name="parameters" element="tns:addCloudVLANInterface"/>
@@ -69,12 +105,6 @@
 </message>
 <message name="changeIPRoutingResponse">
 <part name="parameters" element="tns:changeIPRoutingResponse"/>
-</message>
-<message name="getLoginToken">
-<part name="parameters" element="tns:getLoginToken"/>
-</message>
-<message name="getLoginTokenResponse">
-<part name="parameters" element="tns:getLoginTokenResponse"/>
 </message>
 <message name="sendPasswordResetRequest">
 <part name="parameters" element="tns:sendPasswordResetRequest"/>
@@ -142,36 +172,6 @@
 <message name="vServerResumeResponse">
 <part name="parameters" element="tns:vServerResumeResponse"/>
 </message>
-<message name="vServerRestore">
-<part name="parameters" element="tns:vServerRestore"/>
-</message>
-<message name="vServerRestoreResponse">
-<part name="parameters" element="tns:vServerRestoreResponse"/>
-</message>
-<message name="getVServerStatToken">
-<part name="parameters" element="tns:getVServerStatToken"/>
-</message>
-<message name="getVServerStatTokenResponse">
-<part name="parameters" element="tns:getVServerStatTokenResponse"/>
-</message>
-<message name="getVServerTrafficOfDay">
-<part name="parameters" element="tns:getVServerTrafficOfDay"/>
-</message>
-<message name="getVServerTrafficOfDayResponse">
-<part name="parameters" element="tns:getVServerTrafficOfDayResponse"/>
-</message>
-<message name="getVServerTrafficOfMonth">
-<part name="parameters" element="tns:getVServerTrafficOfMonth"/>
-</message>
-<message name="getVServerTrafficOfMonthResponse">
-<part name="parameters" element="tns:getVServerTrafficOfMonthResponse"/>
-</message>
-<message name="setPanelSettings">
-<part name="parameters" element="tns:setPanelSettings"/>
-</message>
-<message name="setPanelSettingsResponse">
-<part name="parameters" element="tns:setPanelSettingsResponse"/>
-</message>
 <message name="getVServers">
 <part name="parameters" element="tns:getVServers"/>
 </message>
@@ -184,16 +184,24 @@
 <message name="getPanelSettingsResponse">
 <part name="parameters" element="tns:getPanelSettingsResponse"/>
 </message>
-<message name="getUserData">
-<part name="parameters" element="tns:getUserData"/>
+<message name="setPanelSettings">
+<part name="parameters" element="tns:setPanelSettings"/>
 </message>
-<message name="getUserDataResponse">
-<part name="parameters" element="tns:getUserDataResponse"/>
+<message name="setPanelSettingsResponse">
+<part name="parameters" element="tns:setPanelSettingsResponse"/>
 </message>
 <portType name="WSEndUser">
+<operation name="getUserData">
+<input wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/getUserDataRequest" message="tns:getUserData"/>
+<output wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/getUserDataResponse" message="tns:getUserDataResponse"/>
+</operation>
 <operation name="getVServerInformation">
 <input wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/getVServerInformationRequest" message="tns:getVServerInformation"/>
 <output wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/getVServerInformationResponse" message="tns:getVServerInformationResponse"/>
+</operation>
+<operation name="changeUserPassword">
+<input wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/changeUserPasswordRequest" message="tns:changeUserPassword"/>
+<output wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/changeUserPasswordResponse" message="tns:changeUserPasswordResponse"/>
 </operation>
 <operation name="stopVServer">
 <input wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/stopVServerRequest" message="tns:stopVServer"/>
@@ -223,9 +231,25 @@
 <input wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/vServerPoweroffRequest" message="tns:vServerPoweroff"/>
 <output wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/vServerPoweroffResponse" message="tns:vServerPoweroffResponse"/>
 </operation>
-<operation name="changeUserPassword">
-<input wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/changeUserPasswordRequest" message="tns:changeUserPassword"/>
-<output wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/changeUserPasswordResponse" message="tns:changeUserPasswordResponse"/>
+<operation name="getLoginToken">
+<input wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/getLoginTokenRequest" message="tns:getLoginToken"/>
+<output wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/getLoginTokenResponse" message="tns:getLoginTokenResponse"/>
+</operation>
+<operation name="vServerRestore">
+<input wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/vServerRestoreRequest" message="tns:vServerRestore"/>
+<output wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/vServerRestoreResponse" message="tns:vServerRestoreResponse"/>
+</operation>
+<operation name="getVServerStatToken">
+<input wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/getVServerStatTokenRequest" message="tns:getVServerStatToken"/>
+<output wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/getVServerStatTokenResponse" message="tns:getVServerStatTokenResponse"/>
+</operation>
+<operation name="getVServerTrafficOfDay">
+<input wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/getVServerTrafficOfDayRequest" message="tns:getVServerTrafficOfDay"/>
+<output wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/getVServerTrafficOfDayResponse" message="tns:getVServerTrafficOfDayResponse"/>
+</operation>
+<operation name="getVServerTrafficOfMonth">
+<input wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/getVServerTrafficOfMonthRequest" message="tns:getVServerTrafficOfMonth"/>
+<output wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/getVServerTrafficOfMonthResponse" message="tns:getVServerTrafficOfMonthResponse"/>
 </operation>
 <operation name="addCloudVLANInterface">
 <input wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/addCloudVLANInterfaceRequest" message="tns:addCloudVLANInterface"/>
@@ -234,10 +258,6 @@
 <operation name="changeIPRouting">
 <input wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/changeIPRoutingRequest" message="tns:changeIPRouting"/>
 <output wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/changeIPRoutingResponse" message="tns:changeIPRoutingResponse"/>
-</operation>
-<operation name="getLoginToken">
-<input wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/getLoginTokenRequest" message="tns:getLoginToken"/>
-<output wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/getLoginTokenResponse" message="tns:getLoginTokenResponse"/>
 </operation>
 <operation name="sendPasswordResetRequest">
 <input wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/sendPasswordResetRequestRequest" message="tns:sendPasswordResetRequest"/>
@@ -283,26 +303,6 @@
 <input wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/vServerResumeRequest" message="tns:vServerResume"/>
 <output wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/vServerResumeResponse" message="tns:vServerResumeResponse"/>
 </operation>
-<operation name="vServerRestore">
-<input wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/vServerRestoreRequest" message="tns:vServerRestore"/>
-<output wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/vServerRestoreResponse" message="tns:vServerRestoreResponse"/>
-</operation>
-<operation name="getVServerStatToken">
-<input wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/getVServerStatTokenRequest" message="tns:getVServerStatToken"/>
-<output wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/getVServerStatTokenResponse" message="tns:getVServerStatTokenResponse"/>
-</operation>
-<operation name="getVServerTrafficOfDay">
-<input wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/getVServerTrafficOfDayRequest" message="tns:getVServerTrafficOfDay"/>
-<output wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/getVServerTrafficOfDayResponse" message="tns:getVServerTrafficOfDayResponse"/>
-</operation>
-<operation name="getVServerTrafficOfMonth">
-<input wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/getVServerTrafficOfMonthRequest" message="tns:getVServerTrafficOfMonth"/>
-<output wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/getVServerTrafficOfMonthResponse" message="tns:getVServerTrafficOfMonthResponse"/>
-</operation>
-<operation name="setPanelSettings">
-<input wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/setPanelSettingsRequest" message="tns:setPanelSettings"/>
-<output wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/setPanelSettingsResponse" message="tns:setPanelSettingsResponse"/>
-</operation>
 <operation name="getVServers">
 <input wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/getVServersRequest" message="tns:getVServers"/>
 <output wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/getVServersResponse" message="tns:getVServersResponse"/>
@@ -311,14 +311,32 @@
 <input wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/getPanelSettingsRequest" message="tns:getPanelSettings"/>
 <output wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/getPanelSettingsResponse" message="tns:getPanelSettingsResponse"/>
 </operation>
-<operation name="getUserData">
-<input wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/getUserDataRequest" message="tns:getUserData"/>
-<output wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/getUserDataResponse" message="tns:getUserDataResponse"/>
+<operation name="setPanelSettings">
+<input wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/setPanelSettingsRequest" message="tns:setPanelSettings"/>
+<output wsam:Action="http://enduser.service.web.vcp.netcup.de/WSEndUser/setPanelSettingsResponse" message="tns:setPanelSettingsResponse"/>
 </operation>
 </portType>
 <binding name="WSEndUserPortBinding" type="tns:WSEndUser">
 <soap:binding transport="http://schemas.xmlsoap.org/soap/http" style="document"/>
+<operation name="getUserData">
+<soap:operation soapAction=""/>
+<input>
+<soap:body use="literal"/>
+</input>
+<output>
+<soap:body use="literal"/>
+</output>
+</operation>
 <operation name="getVServerInformation">
+<soap:operation soapAction=""/>
+<input>
+<soap:body use="literal"/>
+</input>
+<output>
+<soap:body use="literal"/>
+</output>
+</operation>
+<operation name="changeUserPassword">
 <soap:operation soapAction=""/>
 <input>
 <soap:body use="literal"/>
@@ -390,7 +408,43 @@
 <soap:body use="literal"/>
 </output>
 </operation>
-<operation name="changeUserPassword">
+<operation name="getLoginToken">
+<soap:operation soapAction=""/>
+<input>
+<soap:body use="literal"/>
+</input>
+<output>
+<soap:body use="literal"/>
+</output>
+</operation>
+<operation name="vServerRestore">
+<soap:operation soapAction=""/>
+<input>
+<soap:body use="literal"/>
+</input>
+<output>
+<soap:body use="literal"/>
+</output>
+</operation>
+<operation name="getVServerStatToken">
+<soap:operation soapAction=""/>
+<input>
+<soap:body use="literal"/>
+</input>
+<output>
+<soap:body use="literal"/>
+</output>
+</operation>
+<operation name="getVServerTrafficOfDay">
+<soap:operation soapAction=""/>
+<input>
+<soap:body use="literal"/>
+</input>
+<output>
+<soap:body use="literal"/>
+</output>
+</operation>
+<operation name="getVServerTrafficOfMonth">
 <soap:operation soapAction=""/>
 <input>
 <soap:body use="literal"/>
@@ -409,15 +463,6 @@
 </output>
 </operation>
 <operation name="changeIPRouting">
-<soap:operation soapAction=""/>
-<input>
-<soap:body use="literal"/>
-</input>
-<output>
-<soap:body use="literal"/>
-</output>
-</operation>
-<operation name="getLoginToken">
 <soap:operation soapAction=""/>
 <input>
 <soap:body use="literal"/>
@@ -525,51 +570,6 @@
 <soap:body use="literal"/>
 </output>
 </operation>
-<operation name="vServerRestore">
-<soap:operation soapAction=""/>
-<input>
-<soap:body use="literal"/>
-</input>
-<output>
-<soap:body use="literal"/>
-</output>
-</operation>
-<operation name="getVServerStatToken">
-<soap:operation soapAction=""/>
-<input>
-<soap:body use="literal"/>
-</input>
-<output>
-<soap:body use="literal"/>
-</output>
-</operation>
-<operation name="getVServerTrafficOfDay">
-<soap:operation soapAction=""/>
-<input>
-<soap:body use="literal"/>
-</input>
-<output>
-<soap:body use="literal"/>
-</output>
-</operation>
-<operation name="getVServerTrafficOfMonth">
-<soap:operation soapAction=""/>
-<input>
-<soap:body use="literal"/>
-</input>
-<output>
-<soap:body use="literal"/>
-</output>
-</operation>
-<operation name="setPanelSettings">
-<soap:operation soapAction=""/>
-<input>
-<soap:body use="literal"/>
-</input>
-<output>
-<soap:body use="literal"/>
-</output>
-</operation>
 <operation name="getVServers">
 <soap:operation soapAction=""/>
 <input>
@@ -588,7 +588,7 @@
 <soap:body use="literal"/>
 </output>
 </operation>
-<operation name="getUserData">
+<operation name="setPanelSettings">
 <soap:operation soapAction=""/>
 <input>
 <soap:body use="literal"/>

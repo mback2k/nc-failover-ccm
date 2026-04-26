@@ -84,23 +84,6 @@ type GetVServerUpdateNotificationResponse struct {
 	Return_ bool `xml:"return,omitempty" json:"return,omitempty"`
 }
 
-type VServerReset struct {
-	XMLName xml.Name `xml:"tns:vServerReset"`
-	XMLNS string `xml:"xmlns:tns,attr" json:"-"`
-
-	LoginName string `xml:"loginName,omitempty" json:"loginName,omitempty"`
-
-	Password string `xml:"password,omitempty" json:"password,omitempty"`
-
-	VserverName string `xml:"vserverName,omitempty" json:"vserverName,omitempty"`
-}
-
-type VServerResetResponse struct {
-	XMLName xml.Name `xml:"vServerResetResponse"`
-
-	Return_ bool `xml:"return,omitempty" json:"return,omitempty"`
-}
-
 type ChangeUserPassword struct {
 	XMLName xml.Name `xml:"tns:changeUserPassword"`
 	XMLNS string `xml:"xmlns:tns,attr" json:"-"`
@@ -114,6 +97,23 @@ type ChangeUserPassword struct {
 
 type ChangeUserPasswordResponse struct {
 	XMLName xml.Name `xml:"changeUserPasswordResponse"`
+
+	Return_ bool `xml:"return,omitempty" json:"return,omitempty"`
+}
+
+type VServerReset struct {
+	XMLName xml.Name `xml:"tns:vServerReset"`
+	XMLNS string `xml:"xmlns:tns,attr" json:"-"`
+
+	LoginName string `xml:"loginName,omitempty" json:"loginName,omitempty"`
+
+	Password string `xml:"password,omitempty" json:"password,omitempty"`
+
+	VserverName string `xml:"vserverName,omitempty" json:"vserverName,omitempty"`
+}
+
+type VServerResetResponse struct {
+	XMLName xml.Name `xml:"vServerResetResponse"`
 
 	Return_ bool `xml:"return,omitempty" json:"return,omitempty"`
 }
@@ -424,23 +424,6 @@ type GetVServerLogEntryCountResponse struct {
 	Return_ int64 `xml:"return,omitempty" json:"return,omitempty"`
 }
 
-type GetVServerUptime struct {
-	XMLName xml.Name `xml:"tns:getVServerUptime"`
-	XMLNS string `xml:"xmlns:tns,attr" json:"-"`
-
-	LoginName string `xml:"loginName,omitempty" json:"loginName,omitempty"`
-
-	Password string `xml:"password,omitempty" json:"password,omitempty"`
-
-	VserverName string `xml:"vserverName,omitempty" json:"vserverName,omitempty"`
-}
-
-type GetVServerUptimeResponse struct {
-	XMLName xml.Name `xml:"getVServerUptimeResponse"`
-
-	Return_ string `xml:"return,omitempty" json:"return,omitempty"`
-}
-
 type GetVServerTrafficOfMonth struct {
 	XMLName xml.Name `xml:"tns:getVServerTrafficOfMonth"`
 	XMLNS string `xml:"xmlns:tns,attr" json:"-"`
@@ -460,6 +443,23 @@ type GetVServerTrafficOfMonthResponse struct {
 	XMLName xml.Name `xml:"getVServerTrafficOfMonthResponse"`
 
 	Return_ *TrafficMonthObject `xml:"return,omitempty" json:"return,omitempty"`
+}
+
+type GetVServerUptime struct {
+	XMLName xml.Name `xml:"tns:getVServerUptime"`
+	XMLNS string `xml:"xmlns:tns,attr" json:"-"`
+
+	LoginName string `xml:"loginName,omitempty" json:"loginName,omitempty"`
+
+	Password string `xml:"password,omitempty" json:"password,omitempty"`
+
+	VserverName string `xml:"vserverName,omitempty" json:"vserverName,omitempty"`
+}
+
+type GetVServerUptimeResponse struct {
+	XMLName xml.Name `xml:"getVServerUptimeResponse"`
+
+	Return_ string `xml:"return,omitempty" json:"return,omitempty"`
 }
 
 type GetVServerLogEntries struct {
@@ -711,9 +711,17 @@ type SetPanelSettingsResponse struct {
 }
 
 type WSEndUser interface {
+	GetUserData(request *GetUserData) (*GetUserDataResponse, error)
+
+	GetUserDataContext(ctx context.Context, request *GetUserData) (*GetUserDataResponse, error)
+
 	GetVServerInformation(request *GetVServerInformation) (*GetVServerInformationResponse, error)
 
 	GetVServerInformationContext(ctx context.Context, request *GetVServerInformation) (*GetVServerInformationResponse, error)
+
+	ChangeUserPassword(request *ChangeUserPassword) (*ChangeUserPasswordResponse, error)
+
+	ChangeUserPasswordContext(ctx context.Context, request *ChangeUserPassword) (*ChangeUserPasswordResponse, error)
 
 	StopVServer(request *StopVServer) (*StopVServerResponse, error)
 
@@ -743,9 +751,25 @@ type WSEndUser interface {
 
 	VServerPoweroffContext(ctx context.Context, request *VServerPoweroff) (*VServerPoweroffResponse, error)
 
-	ChangeUserPassword(request *ChangeUserPassword) (*ChangeUserPasswordResponse, error)
+	GetLoginToken(request *GetLoginToken) (*GetLoginTokenResponse, error)
 
-	ChangeUserPasswordContext(ctx context.Context, request *ChangeUserPassword) (*ChangeUserPasswordResponse, error)
+	GetLoginTokenContext(ctx context.Context, request *GetLoginToken) (*GetLoginTokenResponse, error)
+
+	VServerRestore(request *VServerRestore) (*VServerRestoreResponse, error)
+
+	VServerRestoreContext(ctx context.Context, request *VServerRestore) (*VServerRestoreResponse, error)
+
+	GetVServerStatToken(request *GetVServerStatToken) (*GetVServerStatTokenResponse, error)
+
+	GetVServerStatTokenContext(ctx context.Context, request *GetVServerStatToken) (*GetVServerStatTokenResponse, error)
+
+	GetVServerTrafficOfDay(request *GetVServerTrafficOfDay) (*GetVServerTrafficOfDayResponse, error)
+
+	GetVServerTrafficOfDayContext(ctx context.Context, request *GetVServerTrafficOfDay) (*GetVServerTrafficOfDayResponse, error)
+
+	GetVServerTrafficOfMonth(request *GetVServerTrafficOfMonth) (*GetVServerTrafficOfMonthResponse, error)
+
+	GetVServerTrafficOfMonthContext(ctx context.Context, request *GetVServerTrafficOfMonth) (*GetVServerTrafficOfMonthResponse, error)
 
 	AddCloudVLANInterface(request *AddCloudVLANInterface) (*AddCloudVLANInterfaceResponse, error)
 
@@ -754,10 +778,6 @@ type WSEndUser interface {
 	ChangeIPRouting(request *ChangeIPRouting) (*ChangeIPRoutingResponse, error)
 
 	ChangeIPRoutingContext(ctx context.Context, request *ChangeIPRouting) (*ChangeIPRoutingResponse, error)
-
-	GetLoginToken(request *GetLoginToken) (*GetLoginTokenResponse, error)
-
-	GetLoginTokenContext(ctx context.Context, request *GetLoginToken) (*GetLoginTokenResponse, error)
 
 	SendPasswordResetRequest(request *SendPasswordResetRequest) (*SendPasswordResetRequestResponse, error)
 
@@ -803,26 +823,6 @@ type WSEndUser interface {
 
 	VServerResumeContext(ctx context.Context, request *VServerResume) (*VServerResumeResponse, error)
 
-	VServerRestore(request *VServerRestore) (*VServerRestoreResponse, error)
-
-	VServerRestoreContext(ctx context.Context, request *VServerRestore) (*VServerRestoreResponse, error)
-
-	GetVServerStatToken(request *GetVServerStatToken) (*GetVServerStatTokenResponse, error)
-
-	GetVServerStatTokenContext(ctx context.Context, request *GetVServerStatToken) (*GetVServerStatTokenResponse, error)
-
-	GetVServerTrafficOfDay(request *GetVServerTrafficOfDay) (*GetVServerTrafficOfDayResponse, error)
-
-	GetVServerTrafficOfDayContext(ctx context.Context, request *GetVServerTrafficOfDay) (*GetVServerTrafficOfDayResponse, error)
-
-	GetVServerTrafficOfMonth(request *GetVServerTrafficOfMonth) (*GetVServerTrafficOfMonthResponse, error)
-
-	GetVServerTrafficOfMonthContext(ctx context.Context, request *GetVServerTrafficOfMonth) (*GetVServerTrafficOfMonthResponse, error)
-
-	SetPanelSettings(request *SetPanelSettings) (*SetPanelSettingsResponse, error)
-
-	SetPanelSettingsContext(ctx context.Context, request *SetPanelSettings) (*SetPanelSettingsResponse, error)
-
 	GetVServers(request *GetVServers) (*GetVServersResponse, error)
 
 	GetVServersContext(ctx context.Context, request *GetVServers) (*GetVServersResponse, error)
@@ -831,9 +831,9 @@ type WSEndUser interface {
 
 	GetPanelSettingsContext(ctx context.Context, request *GetPanelSettings) (*GetPanelSettingsResponse, error)
 
-	GetUserData(request *GetUserData) (*GetUserDataResponse, error)
+	SetPanelSettings(request *SetPanelSettings) (*SetPanelSettingsResponse, error)
 
-	GetUserDataContext(ctx context.Context, request *GetUserData) (*GetUserDataResponse, error)
+	SetPanelSettingsContext(ctx context.Context, request *SetPanelSettings) (*SetPanelSettingsResponse, error)
 }
 
 type wSEndUser struct {
@@ -844,6 +844,23 @@ func NewWSEndUser(client *soap.Client) WSEndUser {
 	return &wSEndUser{
 		client: client,
 	}
+}
+
+func (service *wSEndUser) GetUserDataContext(ctx context.Context, request *GetUserData) (*GetUserDataResponse, error) {
+	response := new(GetUserDataResponse)
+	err := service.client.CallContext(ctx, "''", request, response)
+	if err != nil {
+		return nil, err
+	}
+
+	return response, nil
+}
+
+func (service *wSEndUser) GetUserData(request *GetUserData) (*GetUserDataResponse, error) {
+	return service.GetUserDataContext(
+		context.Background(),
+		request,
+	)
 }
 
 func (service *wSEndUser) GetVServerInformationContext(ctx context.Context, request *GetVServerInformation) (*GetVServerInformationResponse, error) {
@@ -858,6 +875,23 @@ func (service *wSEndUser) GetVServerInformationContext(ctx context.Context, requ
 
 func (service *wSEndUser) GetVServerInformation(request *GetVServerInformation) (*GetVServerInformationResponse, error) {
 	return service.GetVServerInformationContext(
+		context.Background(),
+		request,
+	)
+}
+
+func (service *wSEndUser) ChangeUserPasswordContext(ctx context.Context, request *ChangeUserPassword) (*ChangeUserPasswordResponse, error) {
+	response := new(ChangeUserPasswordResponse)
+	err := service.client.CallContext(ctx, "''", request, response)
+	if err != nil {
+		return nil, err
+	}
+
+	return response, nil
+}
+
+func (service *wSEndUser) ChangeUserPassword(request *ChangeUserPassword) (*ChangeUserPasswordResponse, error) {
+	return service.ChangeUserPasswordContext(
 		context.Background(),
 		request,
 	)
@@ -982,8 +1016,8 @@ func (service *wSEndUser) VServerPoweroff(request *VServerPoweroff) (*VServerPow
 	)
 }
 
-func (service *wSEndUser) ChangeUserPasswordContext(ctx context.Context, request *ChangeUserPassword) (*ChangeUserPasswordResponse, error) {
-	response := new(ChangeUserPasswordResponse)
+func (service *wSEndUser) GetLoginTokenContext(ctx context.Context, request *GetLoginToken) (*GetLoginTokenResponse, error) {
+	response := new(GetLoginTokenResponse)
 	err := service.client.CallContext(ctx, "''", request, response)
 	if err != nil {
 		return nil, err
@@ -992,8 +1026,76 @@ func (service *wSEndUser) ChangeUserPasswordContext(ctx context.Context, request
 	return response, nil
 }
 
-func (service *wSEndUser) ChangeUserPassword(request *ChangeUserPassword) (*ChangeUserPasswordResponse, error) {
-	return service.ChangeUserPasswordContext(
+func (service *wSEndUser) GetLoginToken(request *GetLoginToken) (*GetLoginTokenResponse, error) {
+	return service.GetLoginTokenContext(
+		context.Background(),
+		request,
+	)
+}
+
+func (service *wSEndUser) VServerRestoreContext(ctx context.Context, request *VServerRestore) (*VServerRestoreResponse, error) {
+	response := new(VServerRestoreResponse)
+	err := service.client.CallContext(ctx, "''", request, response)
+	if err != nil {
+		return nil, err
+	}
+
+	return response, nil
+}
+
+func (service *wSEndUser) VServerRestore(request *VServerRestore) (*VServerRestoreResponse, error) {
+	return service.VServerRestoreContext(
+		context.Background(),
+		request,
+	)
+}
+
+func (service *wSEndUser) GetVServerStatTokenContext(ctx context.Context, request *GetVServerStatToken) (*GetVServerStatTokenResponse, error) {
+	response := new(GetVServerStatTokenResponse)
+	err := service.client.CallContext(ctx, "''", request, response)
+	if err != nil {
+		return nil, err
+	}
+
+	return response, nil
+}
+
+func (service *wSEndUser) GetVServerStatToken(request *GetVServerStatToken) (*GetVServerStatTokenResponse, error) {
+	return service.GetVServerStatTokenContext(
+		context.Background(),
+		request,
+	)
+}
+
+func (service *wSEndUser) GetVServerTrafficOfDayContext(ctx context.Context, request *GetVServerTrafficOfDay) (*GetVServerTrafficOfDayResponse, error) {
+	response := new(GetVServerTrafficOfDayResponse)
+	err := service.client.CallContext(ctx, "''", request, response)
+	if err != nil {
+		return nil, err
+	}
+
+	return response, nil
+}
+
+func (service *wSEndUser) GetVServerTrafficOfDay(request *GetVServerTrafficOfDay) (*GetVServerTrafficOfDayResponse, error) {
+	return service.GetVServerTrafficOfDayContext(
+		context.Background(),
+		request,
+	)
+}
+
+func (service *wSEndUser) GetVServerTrafficOfMonthContext(ctx context.Context, request *GetVServerTrafficOfMonth) (*GetVServerTrafficOfMonthResponse, error) {
+	response := new(GetVServerTrafficOfMonthResponse)
+	err := service.client.CallContext(ctx, "''", request, response)
+	if err != nil {
+		return nil, err
+	}
+
+	return response, nil
+}
+
+func (service *wSEndUser) GetVServerTrafficOfMonth(request *GetVServerTrafficOfMonth) (*GetVServerTrafficOfMonthResponse, error) {
+	return service.GetVServerTrafficOfMonthContext(
 		context.Background(),
 		request,
 	)
@@ -1028,23 +1130,6 @@ func (service *wSEndUser) ChangeIPRoutingContext(ctx context.Context, request *C
 
 func (service *wSEndUser) ChangeIPRouting(request *ChangeIPRouting) (*ChangeIPRoutingResponse, error) {
 	return service.ChangeIPRoutingContext(
-		context.Background(),
-		request,
-	)
-}
-
-func (service *wSEndUser) GetLoginTokenContext(ctx context.Context, request *GetLoginToken) (*GetLoginTokenResponse, error) {
-	response := new(GetLoginTokenResponse)
-	err := service.client.CallContext(ctx, "''", request, response)
-	if err != nil {
-		return nil, err
-	}
-
-	return response, nil
-}
-
-func (service *wSEndUser) GetLoginToken(request *GetLoginToken) (*GetLoginTokenResponse, error) {
-	return service.GetLoginTokenContext(
 		context.Background(),
 		request,
 	)
@@ -1237,91 +1322,6 @@ func (service *wSEndUser) VServerResume(request *VServerResume) (*VServerResumeR
 	)
 }
 
-func (service *wSEndUser) VServerRestoreContext(ctx context.Context, request *VServerRestore) (*VServerRestoreResponse, error) {
-	response := new(VServerRestoreResponse)
-	err := service.client.CallContext(ctx, "''", request, response)
-	if err != nil {
-		return nil, err
-	}
-
-	return response, nil
-}
-
-func (service *wSEndUser) VServerRestore(request *VServerRestore) (*VServerRestoreResponse, error) {
-	return service.VServerRestoreContext(
-		context.Background(),
-		request,
-	)
-}
-
-func (service *wSEndUser) GetVServerStatTokenContext(ctx context.Context, request *GetVServerStatToken) (*GetVServerStatTokenResponse, error) {
-	response := new(GetVServerStatTokenResponse)
-	err := service.client.CallContext(ctx, "''", request, response)
-	if err != nil {
-		return nil, err
-	}
-
-	return response, nil
-}
-
-func (service *wSEndUser) GetVServerStatToken(request *GetVServerStatToken) (*GetVServerStatTokenResponse, error) {
-	return service.GetVServerStatTokenContext(
-		context.Background(),
-		request,
-	)
-}
-
-func (service *wSEndUser) GetVServerTrafficOfDayContext(ctx context.Context, request *GetVServerTrafficOfDay) (*GetVServerTrafficOfDayResponse, error) {
-	response := new(GetVServerTrafficOfDayResponse)
-	err := service.client.CallContext(ctx, "''", request, response)
-	if err != nil {
-		return nil, err
-	}
-
-	return response, nil
-}
-
-func (service *wSEndUser) GetVServerTrafficOfDay(request *GetVServerTrafficOfDay) (*GetVServerTrafficOfDayResponse, error) {
-	return service.GetVServerTrafficOfDayContext(
-		context.Background(),
-		request,
-	)
-}
-
-func (service *wSEndUser) GetVServerTrafficOfMonthContext(ctx context.Context, request *GetVServerTrafficOfMonth) (*GetVServerTrafficOfMonthResponse, error) {
-	response := new(GetVServerTrafficOfMonthResponse)
-	err := service.client.CallContext(ctx, "''", request, response)
-	if err != nil {
-		return nil, err
-	}
-
-	return response, nil
-}
-
-func (service *wSEndUser) GetVServerTrafficOfMonth(request *GetVServerTrafficOfMonth) (*GetVServerTrafficOfMonthResponse, error) {
-	return service.GetVServerTrafficOfMonthContext(
-		context.Background(),
-		request,
-	)
-}
-
-func (service *wSEndUser) SetPanelSettingsContext(ctx context.Context, request *SetPanelSettings) (*SetPanelSettingsResponse, error) {
-	response := new(SetPanelSettingsResponse)
-	err := service.client.CallContext(ctx, "''", request, response)
-	if err != nil {
-		return nil, err
-	}
-
-	return response, nil
-}
-
-func (service *wSEndUser) SetPanelSettings(request *SetPanelSettings) (*SetPanelSettingsResponse, error) {
-	return service.SetPanelSettingsContext(
-		context.Background(),
-		request,
-	)
-}
-
 func (service *wSEndUser) GetVServersContext(ctx context.Context, request *GetVServers) (*GetVServersResponse, error) {
 	response := new(GetVServersResponse)
 	err := service.client.CallContext(ctx, "''", request, response)
@@ -1356,8 +1356,8 @@ func (service *wSEndUser) GetPanelSettings(request *GetPanelSettings) (*GetPanel
 	)
 }
 
-func (service *wSEndUser) GetUserDataContext(ctx context.Context, request *GetUserData) (*GetUserDataResponse, error) {
-	response := new(GetUserDataResponse)
+func (service *wSEndUser) SetPanelSettingsContext(ctx context.Context, request *SetPanelSettings) (*SetPanelSettingsResponse, error) {
+	response := new(SetPanelSettingsResponse)
 	err := service.client.CallContext(ctx, "''", request, response)
 	if err != nil {
 		return nil, err
@@ -1366,8 +1366,8 @@ func (service *wSEndUser) GetUserDataContext(ctx context.Context, request *GetUs
 	return response, nil
 }
 
-func (service *wSEndUser) GetUserData(request *GetUserData) (*GetUserDataResponse, error) {
-	return service.GetUserDataContext(
+func (service *wSEndUser) SetPanelSettings(request *SetPanelSettings) (*SetPanelSettingsResponse, error) {
+	return service.SetPanelSettingsContext(
 		context.Background(),
 		request,
 	)
