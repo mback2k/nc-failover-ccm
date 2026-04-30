@@ -50,8 +50,7 @@ func (c *cloud) Initialize(ccb cloudprovider.ControllerClientBuilder, stop <-cha
 	c.client = ccb.ClientOrDie(providerName + "/" + versioninfo.Short())
 
 	ctx, cancel := context.WithCancel(context.Background())
-	go func(stop <-chan struct{}) { <-stop; cancel() }(stop)
-	defer cancel()
+	go func(done <-chan struct{}) { <-done; cancel() }(stop)
 
 	err := c.config.Initialize(ctx, c.client)
 	if err != nil {
@@ -61,7 +60,7 @@ func (c *cloud) Initialize(ccb cloudprovider.ControllerClientBuilder, stop <-cha
 	c.server = scp.NewWSEndUser(soap.NewClient(scpWS))
 
 	c.newapi, err = scpcore.NewClientWithResponses("https://www.servercontrolpanel.de/scp-core",
-		scpcore.WithHTTPClient(oauth2.NewClient(context.Background(), c.config.tokensrc)))
+		scpcore.WithHTTPClient(oauth2.NewClient(ctx, c.config.tokensrc)))
 	if err != nil {
 		panic(err)
 	}
