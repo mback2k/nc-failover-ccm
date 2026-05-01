@@ -19,7 +19,8 @@ package nc
 import (
 	"context"
 	"net/netip"
-	"strconv"
+
+	"github.com/mback2k/nc-failover-ccm/nc/scpcore"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
@@ -40,7 +41,7 @@ func (l *loadBalancers) GetLoadBalancer(ctx context.Context, clusterName string,
 	}
 	if nodeName, ok := service.Labels[serviceNode]; ok {
 		klog.Infof("Found existing loadbalancer for service '%s' on node '%s'", service.Name, nodeName)
-		resp, err := l.cloud.getServerIPs(ctx, nodeName)
+		resp, err := l.cloud.getServer(ctx, nodeName, false)
 		if err != nil {
 			return nil, false, err
 		}
@@ -61,21 +62,31 @@ func (l *loadBalancers) GetLoadBalancer(ctx context.Context, clusterName string,
 			if err != nil {
 				return nil, false, err
 			}
-			if addr.Is4() {
-				needIPv4 = false
-			} else if addr.Is6() {
-				needIPv6 = false
-			}
 
 			found := false
-			for _, ip := range resp.Return_ {
-				if *ip == ingress.IP {
-					klog.Infof("Found existing failover IP '%s' on node '%s' for service '%s'", *ip, nodeName, service.Name)
-					found = true
-					break
+			if addr.Is4() {
+				for _, ipv4 := range *resp.JSON200.Ipv4Addresses {
+					klog.Infof("Node '%s' has IPv4 '%s'", nodeName, *ipv4.Ip)
+					if *ipv4.Ip == ingress.IP {
+						klog.Infof("Found existing failover IPv4 '%s' on node '%s' for service '%s'", *ipv4.Ip, nodeName, service.Name)
+						needIPv4 = false
+						found = true
+						break
+					}
+				}
+			} else if addr.Is6() {
+				for _, ipv6 := range *resp.JSON200.Ipv6Addresses {
+					klog.Infof("Node '%s' has IPv6 '%s'", nodeName, *ipv6.NetworkPrefix)
+					if *ipv6.NetworkPrefix == ingress.IP {
+						klog.Infof("Found existing failover IPv6 '%s' on node '%s' for service '%s'", *ipv6.NetworkPrefix, nodeName, service.Name)
+						needIPv6 = false
+						found = true
+						break
+					}
 				}
 			}
 			if !found {
+				klog.Warningf("Existing loadbalancer for service '%s' on node '%s' is missing failover IP '%s'", service.Name, nodeName, ingress.IP)
 				foundAll = false
 			}
 		}
@@ -132,28 +143,40 @@ func (l *loadBalancers) EnsureLoadBalancer(ctx context.Context, clusterName stri
 
 	klog.Infof("Searching matching loadbalancer for service '%s'", service.Name)
 	for nodeName, node := range readyNodes {
-		resp, err := l.cloud.getServerIPs(ctx, nodeName)
+		resp, err := l.cloud.getServer(ctx, nodeName, false)
 		if err != nil {
 			return nil, err
 		}
 		needIPv4 := wantIPv4
 		needIPv6 := wantIPv6
 		ingress := []v1.LoadBalancerIngress{}
-		for _, ip := range resp.Return_ {
-			addr, err := netip.ParseAddr(*ip)
-			if err != nil {
-				return nil, err
-			}
-			if (addr.Is4() && !needIPv4) || (addr.Is6() && !needIPv6) {
-				continue
-			}
-			if l.cloud.config.IsFailoverIP(addr) {
-				klog.Infof("Found matching failover IP '%s' on node '%s' for service '%s'", *ip, nodeName, service.Name)
-				ingress = append(ingress, v1.LoadBalancerIngress{IP: addr.String()})
-				if addr.Is4() {
+		if needIPv4 {
+			for _, ipv4 := range *resp.JSON200.Ipv4Addresses {
+				klog.Infof("Node '%s' has IPv4 '%s'", nodeName, *ipv4.Ip)
+				addr, err := netip.ParseAddr(*ipv4.Ip)
+				if err != nil {
+					return nil, err
+				}
+				if addr.Is4() && l.cloud.config.IsFailoverIP(addr) {
+					klog.Infof("Found matching failover IPv4 '%s' on node '%s' for service '%s'", *ipv4.Ip, nodeName, service.Name)
+					ingress = append(ingress, v1.LoadBalancerIngress{IP: addr.String()})
 					needIPv4 = false
-				} else if addr.Is6() {
+					break
+				}
+			}
+		}
+		if needIPv6 {
+			for _, ipv6 := range *resp.JSON200.Ipv6Addresses {
+				klog.Infof("Node '%s' has IPv6 '%s'", nodeName, *ipv6.NetworkPrefix)
+				addr, err := netip.ParseAddr(*ipv6.NetworkPrefix)
+				if err != nil {
+					return nil, err
+				}
+				if addr.Is6() && l.cloud.config.IsFailoverIP(addr) {
+					klog.Infof("Found matching failover IPv6 '%s' on node '%s' for service '%s'", *ipv6.NetworkPrefix, nodeName, service.Name)
+					ingress = append(ingress, v1.LoadBalancerIngress{IP: addr.String()})
 					needIPv6 = false
+					break
 				}
 			}
 		}
@@ -165,42 +188,34 @@ func (l *loadBalancers) EnsureLoadBalancer(ctx context.Context, clusterName stri
 
 	klog.Infof("Creating new loadbalancer for service '%s'", service.Name)
 	for nodeName, node := range readyNodes {
-		resp, err := l.cloud.getServerInfo(ctx, nodeName)
+		resp, err := l.cloud.getServer(ctx, nodeName, true)
 		if err != nil {
 			return nil, err
 		}
-		if resp.Return_.Status == serverStateOffline {
+		if *resp.JSON200.ServerLiveInfo.State != scpcore.RUNNING {
 			continue
 		}
 		needIPv4 := wantIPv4
 		needIPv6 := wantIPv6
 		ingress := []v1.LoadBalancerIngress{}
-		for _, iface := range resp.Return_.ServerInterfaces {
-			/* identify public interface based upon existence of IPs */
-			if len(iface.Ipv4IP) > 0 && len(iface.Ipv6IP) > 0 {
-				for _, prefix := range l.cloud.config.prefixes {
-					addr := prefix.Addr()
-					if (addr.Is4() && !needIPv4) || (addr.Is6() && !needIPv6) {
-						continue
-					}
-					ip := addr.String()
-					resp, err := l.cloud.routeServerIP(ctx, ip, strconv.Itoa(prefix.Bits()), resp.Return_.VServerName, iface.Mac)
-					if err != nil {
-						return nil, err
-					}
-					if resp.Return_ {
-						klog.Infof("Rerouted failover IP '%s' to node '%s' for service '%s'", ip, nodeName, service.Name)
-						ingress = append(ingress, v1.LoadBalancerIngress{IP: ip})
-						if addr.Is4() {
-							needIPv4 = false
-						} else if addr.Is6() {
-							needIPv6 = false
-						}
-					}
-					if !needIPv4 && !needIPv6 {
-						break
-					}
-				}
+		for _, prefix := range l.cloud.config.prefixes {
+			addr := prefix.Addr()
+			if (addr.Is4() && !needIPv4) || (addr.Is6() && !needIPv6) {
+				continue
+			}
+			ip := addr.String()
+			err := l.cloud.routeServerIP(ctx, ip, *resp.JSON200.Id)
+			if err != nil {
+				return nil, err
+			}
+			klog.Infof("Rerouted failover IP '%s' to node '%s' for service '%s'", ip, nodeName, service.Name)
+			ingress = append(ingress, v1.LoadBalancerIngress{IP: ip})
+			if addr.Is4() {
+				needIPv4 = false
+			} else if addr.Is6() {
+				needIPv6 = false
+			}
+			if !needIPv4 && !needIPv6 {
 				break
 			}
 		}
