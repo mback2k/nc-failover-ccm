@@ -68,11 +68,12 @@ func (c *cloud) Initialize(ccb cloudprovider.ControllerClientBuilder, stop <-cha
 	if err != nil {
 		panic(err)
 	}
-	c.userid, err = c.getUserID(ctx)
+
+	userID, err := c.getUserID(ctx)
 	if err != nil {
 		panic(err)
 	}
-	klog.Infof("Cloud provider '%s' initialized with user ID %s", providerName, c.userid)
+	klog.Infof("Cloud provider '%s' initialized with user ID %s", providerName, userID)
 }
 
 func (c *cloud) Instances() (cloudprovider.Instances, bool) {
@@ -110,6 +111,9 @@ func (c *cloud) HasClusterID() bool {
 }
 
 func (c *cloud) getUserID(ctx context.Context) (string, error) {
+	if c.userid != "" {
+		return c.userid, nil
+	}
 	req, err := http.NewRequestWithContext(ctx, "GET", "https://www.servercontrolpanel.de/realms/scp/protocol/openid-connect/userinfo", nil)
 	if err != nil {
 		return "", err
@@ -128,7 +132,21 @@ func (c *cloud) getUserID(ctx context.Context) (string, error) {
 		return "", err
 	}
 	if id, ok := userinfo["id"].(string); ok {
-		return id, nil
+		c.userid = id
+		return c.userid, nil
+	}
+	tasks, err := c.scpapi.GetApiV1TasksWithResponse(ctx, &scpcore.GetApiV1TasksParams{})
+	if err != nil {
+		return "", err
+	}
+	if tasks.StatusCode() != http.StatusOK {
+		return "", errors.New(tasks.Status())
+	}
+	for _, task := range *tasks.JSON200 {
+		if task.ExecutingUser.Id != nil {
+			c.userid = strconv.Itoa(int(*task.ExecutingUser.Id))
+			return c.userid, nil
+		}
 	}
 	return "", errors.New("user ID not found")
 }
