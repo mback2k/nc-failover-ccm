@@ -46,7 +46,7 @@ type cloud struct {
 	scpcli scpcore.HttpRequestDoer
 	scpapi *scpcore.ClientWithResponses
 
-	userid string
+	userid int32
 	server map[string]int32
 }
 
@@ -110,70 +110,78 @@ func (c *cloud) HasClusterID() bool {
 	return false
 }
 
-func (c *cloud) getUserID(ctx context.Context) (string, error) {
-	if c.userid != "" {
+func (c *cloud) getUserID(ctx context.Context) (int32, error) {
+	if c.userid != 0 {
 		return c.userid, nil
 	}
 	req, err := http.NewRequestWithContext(ctx, "GET", "https://www.servercontrolpanel.de/realms/scp/protocol/openid-connect/userinfo", nil)
 	if err != nil {
-		return "", err
+		return 0, err
 	}
 	resp, err := c.scpcli.Do(req)
 	if err != nil {
-		return "", err
+		return 0, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return "", errors.New(resp.Status)
+		return 0, errors.New(resp.Status)
 	}
-	var userinfo map[string]interface{}
-	err = json.NewDecoder(resp.Body).Decode(&userinfo)
+	var userInfo map[string]interface{}
+	err = json.NewDecoder(resp.Body).Decode(&userInfo)
 	if err != nil {
-		return "", err
+		return 0, err
 	}
-	if id, ok := userinfo["id"].(string); ok {
-		c.userid = id
+	if id, ok := userInfo["id"].(string); ok {
+		userID, err := strconv.Atoi(id)
+		if err != nil {
+			return 0, err
+		}
+		c.userid = int32(userID)
 		return c.userid, nil
 	}
 	tasks, err := c.scpapi.GetApiV1TasksWithResponse(ctx, &scpcore.GetApiV1TasksParams{})
 	if err != nil {
-		return "", err
+		return 0, err
 	}
 	if tasks.StatusCode() != http.StatusOK {
-		return "", errors.New(tasks.Status())
+		return 0, errors.New(tasks.Status())
 	}
 	for _, task := range *tasks.JSON200 {
-		if task.ExecutingUser.Id != nil {
-			c.userid = strconv.Itoa(int(*task.ExecutingUser.Id))
+		if task.ExecutingUser.Id != nil && *task.ExecutingUser.Id != 0 {
+			c.userid = *task.ExecutingUser.Id
 			return c.userid, nil
 		}
 	}
-	return "", errors.New("user ID not found")
+	return 0, errors.New("user ID not found")
+}
+
+func (c *cloud) getServerID(ctx context.Context, serverName string) (int32, error) {
+	serverID, exists := c.server[serverName]
+	if exists {
+		return serverID, nil
+	}
+	resp, err := c.scpapi.GetApiV1ServersWithResponse(ctx, &scpcore.GetApiV1ServersParams{
+		Name: &serverName,
+	})
+	if err != nil {
+		return 0, err
+	}
+	if resp.StatusCode() != http.StatusOK {
+		return 0, errors.New(resp.Status())
+	}
+	for _, server := range *resp.JSON200 {
+		if *server.Name == serverName && server.Id != nil {
+			c.server[serverName] = *server.Id
+			return c.server[serverName], nil
+		}
+	}
+	return 0, errors.New("server ID not found")
 }
 
 func (c *cloud) getServer(ctx context.Context, serverName string, liveInfo bool) (*scpcore.GetApiV1ServersServerIdResponse, error) {
-	serverID := int32(0)
-	serverID, exists := c.server[serverName]
-	if !exists {
-		resp, err := c.scpapi.GetApiV1ServersWithResponse(ctx, &scpcore.GetApiV1ServersParams{
-			Name: &serverName,
-		})
-		if err != nil {
-			return nil, err
-		}
-		if resp.StatusCode() != http.StatusOK {
-			return nil, errors.New(resp.Status())
-		}
-		for _, server := range *resp.JSON200 {
-			if *server.Name == serverName && server.Id != nil {
-				serverID = *server.Id
-				c.server[serverName] = serverID
-				break
-			}
-		}
-		if serverID == 0 {
-			return nil, errors.New("server ID not found")
-		}
+	serverID, err := c.getServerID(ctx, serverName)
+	if err != nil {
+		return nil, err
 	}
 	resp, err := c.scpapi.GetApiV1ServersServerIdWithResponse(ctx, serverID, &scpcore.GetApiV1ServersServerIdParams{
 		LoadServerLiveInfo: &liveInfo,
@@ -187,22 +195,83 @@ func (c *cloud) getServer(ctx context.Context, serverName string, liveInfo bool)
 	return resp, nil
 }
 
-func (c *cloud) routeServerIP(ctx context.Context, failoverIP string, serverID int32) error {
-	addr, err := netip.ParseAddr(failoverIP)
+func (c *cloud) getFailoverIPv4s(ctx context.Context, serverName *string) ([]netip.Addr, error) {
+	userID, err := c.getUserID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var serverId *int32
+	if serverName != nil {
+		serverID, err := c.getServerID(ctx, *serverName)
+		if err != nil {
+			return nil, err
+		}
+		serverId = &serverID
+	}
+	var failoverIPv4s []netip.Addr
+	ipv4s, err := c.scpapi.GetApiV1UsersUserIdFailoveripsV4WithResponse(ctx, userID,
+		&scpcore.GetApiV1UsersUserIdFailoveripsV4Params{ServerId: serverId})
+	if err != nil {
+		return nil, err
+	}
+	if ipv4s.StatusCode() != http.StatusOK {
+		return nil, errors.New(ipv4s.Status())
+	}
+	for _, ipv4 := range *ipv4s.JSON200 {
+		addr, err := netip.ParseAddr(*ipv4.Ip)
+		if err != nil {
+			return nil, err
+		}
+		if addr.Is4() {
+			failoverIPv4s = append(failoverIPv4s, addr)
+		}
+	}
+	return failoverIPv4s, nil
+}
+
+func (c *cloud) getFailoverIPv6s(ctx context.Context, serverName *string) ([]netip.Addr, error) {
+	userID, err := c.getUserID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var serverId *int32
+	if serverName != nil {
+		serverID, err := c.getServerID(ctx, *serverName)
+		if err != nil {
+			return nil, err
+		}
+		serverId = &serverID
+	}
+	var failoverIPv6s []netip.Addr
+	ipv6s, err := c.scpapi.GetApiV1UsersUserIdFailoveripsV6WithResponse(ctx, userID,
+		&scpcore.GetApiV1UsersUserIdFailoveripsV6Params{ServerId: serverId})
+	if err != nil {
+		return nil, err
+	}
+	if ipv6s.StatusCode() != http.StatusOK {
+		return nil, errors.New(ipv6s.Status())
+	}
+	for _, ipv6 := range *ipv6s.JSON200 {
+		addr, err := netip.ParseAddr(*ipv6.NetworkPrefix)
+		if err != nil {
+			return nil, err
+		}
+		if addr.Is6() {
+			failoverIPv6s = append(failoverIPv6s, addr)
+		}
+	}
+	return failoverIPv6s, nil
+}
+
+func (c *cloud) routeServerIP(ctx context.Context, addr netip.Addr, serverID int32) error {
+	userID, err := c.getUserID(ctx)
 	if err != nil {
 		return err
 	}
-	userID := int32(0)
-	if c.userid != "" {
-		if id, err := strconv.Atoi(c.userid); err == nil {
-			userID = int32(id)
-		}
-	}
 	if addr.Is4() {
+		ipstr := addr.String()
 		ipv4s, err := c.scpapi.GetApiV1UsersUserIdFailoveripsV4WithResponse(ctx, userID,
-			&scpcore.GetApiV1UsersUserIdFailoveripsV4Params{
-				Ip: &failoverIP,
-			})
+			&scpcore.GetApiV1UsersUserIdFailoveripsV4Params{Ip: &ipstr})
 		if err != nil {
 			return err
 		}
@@ -210,11 +279,13 @@ func (c *cloud) routeServerIP(ctx context.Context, failoverIP string, serverID i
 			return errors.New(ipv4s.Status())
 		}
 		for _, ipv4 := range *ipv4s.JSON200 {
-			if *ipv4.Ip == failoverIP {
+			if ipv4.Id == nil || ipv4.Ip == nil {
+				klog.Warningf("Incomplete failover IPv4 information for IP '%s', skipping routing this IP to server ID %d", ipstr, serverID)
+				continue
+			}
+			if *ipv4.Ip == ipstr {
 				resp, err := c.scpapi.PatchApiV1UsersUserIdFailoveripsV4IdWithResponse(ctx, userID, *ipv4.Id,
-					scpcore.PatchApiV1UsersUserIdFailoveripsV4IdJSONRequestBody{
-						ServerId: &serverID,
-					})
+					scpcore.PatchApiV1UsersUserIdFailoveripsV4IdJSONRequestBody{ServerId: &serverID})
 				if err != nil {
 					return err
 				}
@@ -226,10 +297,9 @@ func (c *cloud) routeServerIP(ctx context.Context, failoverIP string, serverID i
 		}
 	}
 	if addr.Is6() {
+		ipstr := addr.String()
 		ipv6s, err := c.scpapi.GetApiV1UsersUserIdFailoveripsV6WithResponse(ctx, userID,
-			&scpcore.GetApiV1UsersUserIdFailoveripsV6Params{
-				Ip: &failoverIP,
-			})
+			&scpcore.GetApiV1UsersUserIdFailoveripsV6Params{Ip: &ipstr})
 		if err != nil {
 			return err
 		}
@@ -237,11 +307,13 @@ func (c *cloud) routeServerIP(ctx context.Context, failoverIP string, serverID i
 			return errors.New(ipv6s.Status())
 		}
 		for _, ipv6 := range *ipv6s.JSON200 {
-			if *ipv6.NetworkPrefix == failoverIP {
+			if ipv6.Id == nil || ipv6.NetworkPrefix == nil {
+				klog.Warningf("Incomplete failover IPv6 information for IP '%s', skipping routing this IP to server ID %d", ipstr, serverID)
+				continue
+			}
+			if *ipv6.NetworkPrefix == ipstr {
 				resp, err := c.scpapi.PatchApiV1UsersUserIdFailoveripsV6IdWithResponse(ctx, userID, *ipv6.Id,
-					scpcore.PatchApiV1UsersUserIdFailoveripsV6IdJSONRequestBody{
-						ServerId: &serverID,
-					})
+					scpcore.PatchApiV1UsersUserIdFailoveripsV6IdJSONRequestBody{ServerId: &serverID})
 				if err != nil {
 					return err
 				}
@@ -261,7 +333,7 @@ func newCloud(config io.Reader) (cloudprovider.Interface, error) {
 	}
 	cfg := Config{}
 	dec := yaml.NewDecoder(config)
-	dec.KnownFields(true)
+	dec.KnownFields(false)
 	err := dec.Decode(&cfg)
 	return &cloud{config: &cfg}, err
 }

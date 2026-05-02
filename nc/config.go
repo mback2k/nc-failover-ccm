@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"net/netip"
 	"strings"
 
 	"golang.org/x/oauth2"
@@ -35,8 +34,6 @@ type Config struct {
 	Secret   string
 	Username string
 	Password string
-	Failover []string
-	prefixes []netip.Prefix
 	tokensrc oauth2.TokenSource
 }
 
@@ -59,9 +56,6 @@ func (c *Config) Initialize(ctx context.Context, client kubernetes.Interface) er
 		}
 		if username, ok := config.Data["username"]; ok {
 			c.Username = username
-		}
-		if failover, ok := config.Data["failover"]; ok {
-			c.Failover = strings.Split(failover, ",")
 		}
 	}
 	if c.Secret != "" {
@@ -90,17 +84,6 @@ func (c *Config) Initialize(ctx context.Context, client kubernetes.Interface) er
 	}
 	if c.Password == "" {
 		return errors.New("missing cloud password")
-	}
-	if len(c.Failover) == 0 {
-		return errors.New("missing cloud failover")
-	}
-	for _, failover := range c.Failover {
-		prefix, err := netip.ParsePrefix(failover)
-		if err != nil {
-			return err
-		}
-		c.prefixes = append(c.prefixes, prefix)
-		klog.Infof("Taking control of failover IP: %s", prefix.String())
 	}
 
 	if c.tokensrc != nil {
@@ -152,13 +135,4 @@ func (c *Config) Initialize(ctx context.Context, client kubernetes.Interface) er
 	}
 
 	return nil
-}
-
-func (c *Config) IsFailoverIP(addr netip.Addr) bool {
-	for _, prefix := range c.prefixes {
-		if prefix.Contains(addr) {
-			return true
-		}
-	}
-	return false
 }

@@ -131,13 +131,20 @@ func (i *instancesV2) InstanceMetadata(ctx context.Context, node *v1.Node) (*clo
 		}
 	}
 	klog.Infof("Server '%s' has addresses: %s", node.Name, addresses)
+	userID, err := i.cloud.getUserID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if resp.JSON200.Name == nil {
+		resp.JSON200.Name = &node.Name
+	}
 	metadata := &cloudprovider.InstanceMetadata{
 		ProviderID:    i.cloud.ProviderName() + "://" + *resp.JSON200.Name,
 		NodeAddresses: addresses,
 		InstanceType:  strings.ReplaceAll(resp.JSON200.Template.Name, " ", "_"),
 		Region:        strings.ReplaceAll(resp.JSON200.Site.City, " ", "_"),
 		AdditionalLabels: map[string]string{
-			nodeUserID:   i.cloud.userid,
+			nodeUserID:   strconv.Itoa(int(userID)),
 			nodeServerID: strconv.Itoa(int(*resp.JSON200.Id)),
 		},
 	}
