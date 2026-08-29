@@ -35,6 +35,10 @@ func (c *cloud) updateServiceNode(service *v1.Service, node *v1.Node) error {
 		return err
 	}
 	labelName := nodeService + service.Name
+	err = c.resetNodeLabels(labelName, node.Name)
+	if err != nil {
+		return err
+	}
 	labels := map[string]string{labelName: "true"}
 	if !nodeHelpers.AddOrUpdateLabelsOnNode(c.client, labels, node) {
 		return errors.New("failed to update node labels")
@@ -44,7 +48,6 @@ func (c *cloud) updateServiceNode(service *v1.Service, node *v1.Node) error {
 }
 
 func (c *cloud) removeServiceNode(service *v1.Service, clearStatus bool) error {
-	nodeName := service.Annotations[serviceNode]
 	changes := service.DeepCopy()
 	if clearStatus {
 		changes.Status.LoadBalancer = v1.LoadBalancerStatus{}
@@ -55,15 +58,26 @@ func (c *cloud) removeServiceNode(service *v1.Service, clearStatus bool) error {
 	if err != nil {
 		return err
 	}
-	node, err := c.client.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
+	labelName := nodeService + service.Name
+	return c.resetNodeLabels(labelName, "")
+}
+
+func (c *cloud) resetNodeLabels(labelName string, excludeNodeName string) error {
+	nodeList, err := c.client.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{
+		LabelSelector: labelName + "=true",
+	})
 	if err != nil {
 		return err
 	}
-	labelName := nodeService + service.Name
-	labels := map[string]string{labelName: ""}
-	if !nodeHelpers.AddOrUpdateLabelsOnNode(c.client, labels, node) {
-		return errors.New("failed to update node labels")
+	for _, node := range nodeList.Items {
+		if node.Name == excludeNodeName {
+			continue
+		}
+		labels := map[string]string{labelName: "false"}
+		if !nodeHelpers.AddOrUpdateLabelsOnNode(c.client, labels, &node) {
+			return errors.New("failed to update node labels")
+		}
+		klog.Infof("Removed label '%s' from node '%s'", labelName, node.Name)
 	}
-	klog.Infof("Removed label '%s' from node '%s'", labelName, node.Name)
 	return nil
 }
