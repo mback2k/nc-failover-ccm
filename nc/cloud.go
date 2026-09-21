@@ -24,6 +24,8 @@ import (
 	"net/http"
 	"net/netip"
 	"strconv"
+	"sync"
+	"time"
 
 	"github.com/carlmjohnson/versioninfo"
 	"github.com/mback2k/nc-failover-ccm/nc/scpcore"
@@ -37,6 +39,10 @@ import (
 
 const (
 	providerName = "nc"
+
+	// taskPollInterval is the delay between polls while waiting for an
+	// asynchronous SCP-Core task (e.g. failover IP routing) to finish.
+	taskPollInterval = 2 * time.Second
 )
 
 type cloud struct {
@@ -48,6 +54,11 @@ type cloud struct {
 
 	userid int32
 	server map[string]int32
+
+	// serverLocks serializes SCP-Core tasks per server ID, since SCP-Core
+	// rejects a task with 409 Conflict while another task on the same
+	// server is still in progress.
+	serverLocks sync.Map
 }
 
 func (c *cloud) Initialize(ccb cloudprovider.ControllerClientBuilder, stop <-chan struct{}) {
@@ -263,7 +274,50 @@ func (c *cloud) getFailoverIPv6s(ctx context.Context, serverName *string) ([]net
 	return failoverIPv6s, nil
 }
 
+// lockServer serializes SCP-Core tasks targeting the same server ID.
+// SCP-Core answers a task request with 409 Conflict if another task on
+// the same server is already in progress, so overlapping failover IP
+// routing requests for one server must never be issued concurrently.
+func (c *cloud) lockServer(serverID int32) func() {
+	value, _ := c.serverLocks.LoadOrStore(serverID, &sync.Mutex{})
+	mu := value.(*sync.Mutex)
+	mu.Lock()
+	return mu.Unlock
+}
+
+// waitForTask blocks until the given SCP-Core task reaches a terminal state.
+func (c *cloud) waitForTask(ctx context.Context, uuid string) error {
+	for {
+		resp, err := c.scpapi.GetApiV1TasksUuidWithResponse(ctx, uuid)
+		if err != nil {
+			return err
+		}
+		if resp.StatusCode() != http.StatusOK || resp.JSON200 == nil {
+			return errors.New(resp.Status())
+		}
+		if resp.JSON200.State != nil {
+			switch *resp.JSON200.State {
+			case scpcore.TaskStateFINISHED:
+				return nil
+			case scpcore.TaskStateERROR, scpcore.TaskStateCANCELED:
+				if resp.JSON200.Message != nil {
+					return errors.New(*resp.JSON200.Message)
+				}
+				return errors.New("task did not finish successfully")
+			}
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(taskPollInterval):
+		}
+	}
+}
+
 func (c *cloud) routeServerIP(ctx context.Context, addr netip.Addr, serverID int32) error {
+	unlock := c.lockServer(serverID)
+	defer unlock()
+
 	userID, err := c.getUserID(ctx)
 	if err != nil {
 		return err
@@ -292,6 +346,11 @@ func (c *cloud) routeServerIP(ctx context.Context, addr netip.Addr, serverID int
 				if resp.StatusCode() != http.StatusAccepted {
 					return errors.New(resp.Status())
 				}
+				if resp.JSON202 != nil && resp.JSON202.Uuid != nil {
+					if err := c.waitForTask(ctx, *resp.JSON202.Uuid); err != nil {
+						return err
+					}
+				}
 				return nil
 			}
 		}
@@ -319,6 +378,11 @@ func (c *cloud) routeServerIP(ctx context.Context, addr netip.Addr, serverID int
 				}
 				if resp.StatusCode() != http.StatusAccepted {
 					return errors.New(resp.Status())
+				}
+				if resp.JSON202 != nil && resp.JSON202.Uuid != nil {
+					if err := c.waitForTask(ctx, *resp.JSON202.Uuid); err != nil {
+						return err
+					}
 				}
 				return nil
 			}
