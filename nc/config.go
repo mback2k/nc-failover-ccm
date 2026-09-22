@@ -19,10 +19,12 @@ package nc
 import (
 	"context"
 	"encoding/json"
-	"errors"
+	"net/netip"
+	"reflect"
 	"strings"
 
 	"golang.org/x/oauth2"
+	"gopkg.in/yaml.v3"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -30,10 +32,11 @@ import (
 )
 
 type Config struct {
-	Config   string
-	Secret   string
-	Username string
-	Password string
+	Config string
+	Secret string
+
+	FailoverIPs []netip.Addr `yaml:"failoverIPs"`
+
 	tokensrc oauth2.TokenSource
 }
 
@@ -54,22 +57,31 @@ func (c *Config) Initialize(ctx context.Context, client kubernetes.Interface) er
 		if err != nil {
 			return err
 		}
-		if username, ok := config.Data["username"]; ok {
-			c.Username = username
+
+		configValue := reflect.ValueOf(c).Elem()
+		configType := configValue.Type()
+		for key, value := range config.BinaryData {
+			for fieldIndex := 0; fieldIndex < configType.NumField(); fieldIndex++ {
+				field := configType.Field(fieldIndex)
+				tag, _, _ := strings.Cut(field.Tag.Get("yaml"), ",")
+				if tag == "" || tag == "-" || tag != key || field.PkgPath != "" {
+					continue
+				}
+				if err := yaml.Unmarshal(value, configValue.Field(fieldIndex).Addr().Interface()); err != nil {
+					return err
+				}
+				break
+			}
 		}
 	}
+
 	if c.Secret != "" {
 		name, namespace, _ := strings.Cut(c.Secret, "@")
 		secret, err := client.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
 		if err != nil {
 			return err
 		}
-		if username, ok := secret.Data["username"]; ok {
-			c.Username = string(username)
-		}
-		if password, ok := secret.Data["password"]; ok {
-			c.Password = string(password)
-		}
+
 		if token, ok := secret.Data["token"]; ok {
 			var t oauth2.Token
 			err = json.Unmarshal(token, &t)
@@ -77,13 +89,8 @@ func (c *Config) Initialize(ctx context.Context, client kubernetes.Interface) er
 				return err
 			}
 			c.tokensrc = conf.TokenSource(ctx, &t)
+			klog.Infof("Retrieved access token from secret %s: %s", c.Secret, t.Expiry.Format("2006-01-02 15:04:05"))
 		}
-	}
-	if c.Username == "" {
-		return errors.New("missing cloud username")
-	}
-	if c.Password == "" {
-		return errors.New("missing cloud password")
 	}
 
 	if c.tokensrc != nil {
@@ -117,15 +124,12 @@ func (c *Config) Initialize(ctx context.Context, client kubernetes.Interface) er
 			if err != nil {
 				return err
 			}
-			klog.Infof("Current secret data in secret %s/%s: %s", namespace, name, secret.Data)
 			data, err := json.Marshal(token)
 			if err != nil {
 				return err
 			}
 			secret.Data["token"] = data
-			klog.Infof("Storing access token in secret %s/%s: %s", namespace, name, secret.Data)
 			secret, err = client.CoreV1().Secrets(namespace).Update(ctx, secret, metav1.UpdateOptions{})
-			klog.Infof("Stored access token in secret %s/%s: %s", namespace, name, secret.Data)
 			if err != nil {
 				return err
 			}
@@ -135,4 +139,17 @@ func (c *Config) Initialize(ctx context.Context, client kubernetes.Interface) er
 	}
 
 	return nil
+}
+
+func (c *Config) TokenSource() oauth2.TokenSource {
+	return c.tokensrc
+}
+
+func (c *Config) IsFailoverAddr(ip netip.Addr) bool {
+	for _, failover := range c.FailoverIPs {
+		if failover == ip {
+			return true
+		}
+	}
+	return false
 }

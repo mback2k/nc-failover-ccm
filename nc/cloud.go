@@ -73,7 +73,7 @@ func (c *cloud) Initialize(ccb cloudprovider.ControllerClientBuilder, stop <-cha
 		panic(err)
 	}
 
-	c.scpcli = oauth2.NewClient(ctx, c.config.tokensrc)
+	c.scpcli = oauth2.NewClient(ctx, c.config.TokenSource())
 	c.scpapi, err = scpcore.NewClientWithResponses("https://www.servercontrolpanel.de/scp-core",
 		scpcore.WithHTTPClient(c.scpcli))
 	if err != nil {
@@ -233,7 +233,7 @@ func (c *cloud) getFailoverIPv4s(ctx context.Context, serverName *string) ([]net
 		if err != nil {
 			return nil, err
 		}
-		if addr.Is4() {
+		if addr.Is4() && c.config.IsFailoverAddr(addr) {
 			failoverIPv4s = append(failoverIPv4s, addr)
 		}
 	}
@@ -267,7 +267,7 @@ func (c *cloud) getFailoverIPv6s(ctx context.Context, serverName *string) ([]net
 		if err != nil {
 			return nil, err
 		}
-		if addr.Is6() {
+		if addr.Is6() && c.config.IsFailoverAddr(addr) {
 			failoverIPv6s = append(failoverIPv6s, addr)
 		}
 	}

@@ -18,9 +18,7 @@ secret:
 
 # cloud provider configuration
 ccm:
-  username: ""
-  password: ""
-  failover: ""
+  failoverIPs: []
 
 image:
   repository: "ghcr.io/mback2k/nc-failover-ccm"

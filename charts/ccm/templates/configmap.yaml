@@ -6,8 +6,9 @@ metadata:
   labels:
     {{- include "chart.labels" . | nindent 4 }}
 data:
-  {{- if .Values.ccm.failover }}
-  failover: "{{ .Values.ccm.failover }}"
+  {{- if .Values.ccm.failoverIPs }}
+  failoverIPs: |
+    {{ .Values.ccm.failoverIPs | toYaml | nindent 4 }}
   {{- end }}
   ccm.yaml: |
     config: {{ .Values.config.name | default (include "chart.fullname" .) }}@{{ .Values.config.namespace | default .Release.Namespace }}
