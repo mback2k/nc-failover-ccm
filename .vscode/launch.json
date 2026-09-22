@@ -1,0 +1,18 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Launch nc-failover-ccm",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "program": "${workspaceFolder}",
+            "args": [
+                "--cloud-provider=nc",
+                "--cloud-config=${workspaceFolder}/config.yaml",
+                "--kubeconfig=${env:HOME}/.kube/config",
+                "--leader-elect=false",
+            ]
+        }
+    ]
+}
