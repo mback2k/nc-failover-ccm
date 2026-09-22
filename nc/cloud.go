@@ -84,7 +84,7 @@ func (c *cloud) Initialize(ccb cloudprovider.ControllerClientBuilder, stop <-cha
 	if err != nil {
 		panic(err)
 	}
-	klog.Infof("Cloud provider '%s' initialized with user ID %s", providerName, userID)
+	klog.Infof("Cloud provider '%s' initialized with user ID %d", providerName, userID)
 }
 
 func (c *cloud) Instances() (cloudprovider.Instances, bool) {
