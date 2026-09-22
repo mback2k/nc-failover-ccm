@@ -146,9 +146,16 @@ func (l *loadBalancers) EnsureLoadBalancer(ctx context.Context, clusterName stri
 	klog.Infof("Checking existing loadbalancer for service '%s'", service.Name)
 	if service.Labels != nil {
 		if nodeName, ok := service.Labels[serviceNode]; ok {
-			if _, ok := readyNodes[nodeName]; ok {
-				if status, exists, err := l.GetLoadBalancer(ctx, clusterName, service); exists {
-					return status, err
+			if node, ok := readyNodes[nodeName]; ok {
+				status, exists, err := l.GetLoadBalancer(ctx, clusterName, service)
+				if err != nil {
+					return nil, err
+				}
+				if exists {
+					if err := l.cloud.updateServiceNode(service, node); err != nil {
+						return nil, err
+					}
+					return status, nil
 				}
 			}
 		}
@@ -295,7 +302,10 @@ func (l *loadBalancers) EnsureLoadBalancerDeleted(ctx context.Context, clusterNa
 func (l *loadBalancers) createLoadBalancerStatus(service *v1.Service, node *v1.Node, ingress []v1.LoadBalancerIngress) (*v1.LoadBalancerStatus, error) {
 	if service.Labels != nil {
 		if _, ok := service.Labels[serviceNode]; ok {
-			l.cloud.removeServiceNode(service, false)
+			err := l.cloud.removeServiceNode(service, false)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 	err := l.cloud.updateServiceNode(service, node)
