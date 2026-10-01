@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/json"
 	"net/netip"
-	"reflect"
 	"strings"
 
 	"golang.org/x/oauth2"
@@ -58,20 +57,20 @@ func (c *Config) Initialize(ctx context.Context, client kubernetes.Interface) er
 			return err
 		}
 
-		configValue := reflect.ValueOf(c).Elem()
-		configType := configValue.Type()
+		configData := make(map[string]any, len(config.Data))
 		for key, value := range config.Data {
-			for fieldIndex := 0; fieldIndex < configType.NumField(); fieldIndex++ {
-				field := configType.Field(fieldIndex)
-				tag, _, _ := strings.Cut(field.Tag.Get("yaml"), ",")
-				if tag == "" || tag == "-" || tag != key || field.PkgPath != "" {
-					continue
-				}
-				if err := yaml.Unmarshal([]byte(value), configValue.Field(fieldIndex).Addr().Interface()); err != nil {
-					return err
-				}
-				break
+			var parsed any
+			if err = yaml.Unmarshal([]byte(value), &parsed); err != nil {
+				return err
 			}
+			configData[key] = parsed
+		}
+		data, err := yaml.Marshal(configData)
+		if err != nil {
+			return err
+		}
+		if err = yaml.Unmarshal(data, c); err != nil {
+			return err
 		}
 	}
 
