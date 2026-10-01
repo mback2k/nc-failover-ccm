@@ -5,11 +5,11 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "chart.labels" . | nindent 4 }}
-{{- if .Values.ccm.failoverIPs }}
-binaryData:
-  failoverIPs: {{ .Values.ccm.failoverIPs | toYaml | b64enc | quote }}
-{{- end }}
 data:
+  {{- if .Values.ccm.failoverIPs }}
+  failoverIPs: |
+    {{- .Values.ccm.failoverIPs | toYaml | nindent 4 }}
+  {{- end }}
   ccm.yaml: |
     config: {{ .Values.config.name | default (include "chart.fullname" .) }}@{{ .Values.config.namespace | default .Release.Namespace }}
     secret: {{ .Values.secret.name | default (include "chart.fullname" .) }}@{{ .Values.secret.namespace | default .Release.Namespace }}

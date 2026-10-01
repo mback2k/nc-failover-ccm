@@ -60,14 +60,14 @@ func (c *Config) Initialize(ctx context.Context, client kubernetes.Interface) er
 
 		configValue := reflect.ValueOf(c).Elem()
 		configType := configValue.Type()
-		for key, value := range config.BinaryData {
+		for key, value := range config.Data {
 			for fieldIndex := 0; fieldIndex < configType.NumField(); fieldIndex++ {
 				field := configType.Field(fieldIndex)
 				tag, _, _ := strings.Cut(field.Tag.Get("yaml"), ",")
 				if tag == "" || tag == "-" || tag != key || field.PkgPath != "" {
 					continue
 				}
-				if err := yaml.Unmarshal(value, configValue.Field(fieldIndex).Addr().Interface()); err != nil {
+				if err := yaml.Unmarshal([]byte(value), configValue.Field(fieldIndex).Addr().Interface()); err != nil {
 					return err
 				}
 				break
