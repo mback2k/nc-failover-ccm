@@ -60,10 +60,3 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
-
-{{/*
-Create the name of the supplemental Service patcher ClusterRole
-*/}}
-{{- define "chart.servicePatcherRoleName" -}}
-{{- printf "%s-service-patcher" (include "chart.fullname" . | trunc 47 | trimSuffix "-") }}
-{{- end }}
