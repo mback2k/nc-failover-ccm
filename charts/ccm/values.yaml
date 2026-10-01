@@ -33,6 +33,8 @@ fullnameOverride: ""
 serviceAccount:
   # Specifies whether a service account should be created
   create: true
+  # Existing ClusterRole to bind to the service account.
+  clusterRoleName: system:cloud-controller-manager
   # Automatically mount a ServiceAccount's API credentials?
   automount: true
   # Annotations to add to the service account
